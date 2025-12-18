@@ -248,19 +248,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let changes: string[] = [];
 
     // Update team_id based on team role
-    if (mbaRoles.teamId && user.team_id !== mbaRoles.teamId) {
-      // Verify the team exists in the database before assigning
-      const teamExists = await fetchTeamById(mbaRoles.teamId);
-      if (teamExists) {
-        updates.team_id = mbaRoles.teamId;
-        changes.push(`Team updated to ${teamExists.name}`);
-      } else {
-        console.warn(`Team ${mbaRoles.teamId} not found in database`);
-        return { success: false, message: `Team not found in database. Contact an admin.` };
+    if (mbaRoles.teamId) {
+      // User has a team role - update team if different
+      if (user.team_id !== mbaRoles.teamId) {
+        // Verify the team exists in the database before assigning
+        const teamExists = await fetchTeamById(mbaRoles.teamId);
+        if (teamExists) {
+          updates.team_id = mbaRoles.teamId;
+          changes.push(`Team updated to ${teamExists.name}`);
+        } else {
+          console.warn(`Team ${mbaRoles.teamId} not found in database`);
+          return { success: false, message: `Team not found in database. Contact an admin.` };
+        }
       }
-    } else if (!mbaRoles.teamId && mbaRoles.isFreeAgent && user.team_id !== null) {
+    } else if (mbaRoles.isFreeAgent) {
+      // User has the Free Agent role - remove from team
+      if (user.team_id !== null) {
+        updates.team_id = null;
+        changes.push(`Set as Free Agent (removed from team)`);
+      }
+    } else if (user.team_id !== null) {
+      // User has no team role AND no free agent role, but is on a team
+      // This means they lost their team role - remove them from the team
       updates.team_id = null;
-      changes.push(`Set as Free Agent (no team)`);
+      changes.push(`Removed from team (no team role found)`);
     }
 
     // Update role based on position roles
@@ -271,6 +282,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       newRole = 'coach';
     } else if (mbaRoles.teamId || mbaRoles.isFreeAgent) {
       newRole = 'player';
+    } else {
+      // No team role, no position role, no free agent role = fan
+      newRole = 'fan';
     }
 
     if (newRole !== user.role) {
