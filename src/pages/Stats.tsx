@@ -52,9 +52,8 @@ export default function Stats() {
     return teams.find(t => t.id === teamId);
   };
 
-  // Get all players with stats
+  // Get all users with stats (players, coaches, owners, etc.)
   const playersWithStats = users
-    .filter(u => u.role === 'player')
     .map(player => {
       const stats = playerStats.find(s => s.user_id === player.id);
       const team = getTeam(player.team_id);

@@ -133,7 +133,7 @@ export default function TeamPage() {
             </div>
             <div className="text-white">
               <h1 className="text-3xl font-bold">{team.name}</h1>
-              <p className="opacity-80">Est. {new Date(team.founded_date).getFullYear()}</p>
+              <p className="opacity-80">Est. {team.founded_date}</p>
             </div>
           </div>
         </div>
@@ -200,8 +200,8 @@ export default function TeamPage() {
         </div>
       </div>
 
-      {/* Recent Games */}
-      {recentGames.length > 0 && (
+      {/* Recent Games - Only show if games exist in database */}
+      {recentGames.length > 0 && games.length > 0 && (
         <div className="mc-card p-6">
           <h2 className="text-lg font-bold text-mc-text border-b border-mc-border pb-2 mb-4">
             Recent Games
