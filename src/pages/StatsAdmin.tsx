@@ -261,27 +261,76 @@ export default function StatsAdmin() {
         </div>
       </div>
 
-      {/* Player Selection */}
+      {/* Team & Player Selection */}
       <div className="mc-card p-6">
-        <h2 className="text-lg font-bold text-mc-text mb-4">Select Player</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <h2 className="text-lg font-bold text-mc-text mb-4">Select Team & Player</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Step 1: Select Team */}
           <div>
-            <label className="block text-mc-text-muted mb-2">Player</label>
+            <label className="block text-mc-text-muted mb-2">
+              <span className="inline-flex items-center justify-center w-5 h-5 bg-mc-accent rounded-full text-xs mr-2">1</span>
+              Team
+            </label>
+            <select
+              value={selectedTeamId}
+              onChange={(e) => {
+                setSelectedTeamId(e.target.value);
+                setSelectedPlayer(''); // Reset player when team changes
+              }}
+              className="w-full px-3 py-2 bg-mc-surface border border-mc-border text-mc-text rounded focus:outline-none focus:border-mc-accent"
+            >
+              <option value="">-- Select Team --</option>
+              {teams.map(team => (
+                <option key={team.id} value={team.id}>
+                  {team.name} ({team.abbreviation})
+                </option>
+              ))}
+              <option value="free-agents">Free Agents (No Team)</option>
+            </select>
+          </div>
+
+          {/* Step 2: Select Player (filtered by team) */}
+          <div>
+            <label className="block text-mc-text-muted mb-2">
+              <span className="inline-flex items-center justify-center w-5 h-5 bg-mc-accent rounded-full text-xs mr-2">2</span>
+              Player
+            </label>
             <select
               value={selectedPlayer}
               onChange={(e) => setSelectedPlayer(e.target.value)}
-              className="w-full px-3 py-2 bg-mc-surface border border-mc-border text-mc-text rounded focus:outline-none focus:border-mc-accent"
+              disabled={!selectedTeamId}
+              className="w-full px-3 py-2 bg-mc-surface border border-mc-border text-mc-text rounded focus:outline-none focus:border-mc-accent disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <option value="">-- Select Player --</option>
-              {users.filter(u => u.role === 'player').map(user => (
-                <option key={user.id} value={user.id}>
-                  {user.minecraft_username} (@{user.username})
-                </option>
-              ))}
+              <option value="">
+                {!selectedTeamId ? '-- Select a team first --' : '-- Select Player --'}
+              </option>
+              {users
+                .filter(u => {
+                  if (selectedTeamId === 'free-agents') {
+                    return !u.team_id && u.role === 'player';
+                  }
+                  return u.team_id === selectedTeamId && u.role === 'player';
+                })
+                .map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.minecraft_username} (@{user.username})
+                  </option>
+                ))}
             </select>
+            {selectedTeamId && users.filter(u => {
+              if (selectedTeamId === 'free-agents') return !u.team_id && u.role === 'player';
+              return u.team_id === selectedTeamId && u.role === 'player';
+            }).length === 0 && (
+              <p className="text-sm text-mc-text-muted mt-1">No players on this team</p>
+            )}
           </div>
+
+          {/* Step 3: Select Season */}
           <div>
-            <label className="block text-mc-text-muted mb-2">Season</label>
+            <label className="block text-mc-text-muted mb-2">
+              <span className="inline-flex items-center justify-center w-5 h-5 bg-mc-accent rounded-full text-xs mr-2">3</span>
+              Season
+            </label>
             <select
               value={season}
               onChange={(e) => setSeason(e.target.value)}
@@ -295,6 +344,7 @@ export default function StatsAdmin() {
           </div>
         </div>
 
+        {/* Selected Player Preview */}
         {selectedUser && (
           <div className="mt-4 p-4 bg-mc-darker rounded border border-mc-border flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -304,25 +354,53 @@ export default function StatsAdmin() {
                 {selectedTeam && (
                   <div className="text-sm text-mc-text-muted">{selectedTeam.name}</div>
                 )}
+                {!selectedTeam && (
+                  <div className="text-sm text-yellow-500">Free Agent</div>
+                )}
               </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-mc-text-muted">Editing stats for</div>
+              <div className="font-bold text-mc-accent">{season}</div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Team Change Section */}
+      {/* Team Assignment (Admin) */}
       {selectedPlayer && (
-        <div className="mc-card p-6">
-          <h2 className="text-lg font-bold text-mc-text mb-4">Change Team</h2>
+        <div className="mc-card p-4 border-l-4 border-yellow-500">
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="text-md font-bold text-mc-text">Reassign Player to Different Team</h2>
+            <span className="text-xs bg-yellow-600 text-white px-2 py-0.5 rounded">Admin</span>
+          </div>
           <div className="flex items-center gap-4">
             <div className="flex-1">
-              <label className="block text-mc-text-muted mb-2">New Team</label>
               <select
-                value={selectedTeamId || selectedUser?.team_id || ''}
-                onChange={(e) => setSelectedTeamId(e.target.value)}
-                className="w-full px-3 py-2 bg-mc-surface border border-mc-border text-mc-text rounded focus:outline-none focus:border-mc-accent"
+                value={selectedTeamId === 'free-agents' ? '' : (selectedUser?.team_id || '')}
+                onChange={(e) => {
+                  const newTeamId = e.target.value || null;
+                  // Directly update via this control
+                  (async () => {
+                    setIsChangingTeam(true);
+                    setTeamChangeMessage('');
+                    const result = await updateUser(selectedPlayer, { team_id: newTeamId });
+                    if (result) {
+                      setUsers(prev => prev.map(u => u.id === selectedPlayer ? { ...u, team_id: newTeamId } : u));
+                      const team = teams.find(t => t.id === newTeamId);
+                      setTeamChangeMessage(`Player moved to ${team?.name || 'Free Agent'}!`);
+                      // Update the team filter to follow the player
+                      setSelectedTeamId(newTeamId || 'free-agents');
+                    } else {
+                      setTeamChangeMessage('Failed to update team');
+                    }
+                    setIsChangingTeam(false);
+                  })();
+                }}
+                disabled={isChangingTeam}
+                className="w-full px-3 py-2 bg-mc-surface border border-mc-border text-mc-text rounded focus:outline-none focus:border-mc-accent disabled:opacity-50"
               >
-                <option value="">-- No Team (Free Agent) --</option>
+                <option value="">Free Agent (No Team)</option>
                 {teams.map(team => (
                   <option key={team.id} value={team.id}>
                     {team.name} ({team.abbreviation})
@@ -330,30 +408,9 @@ export default function StatsAdmin() {
                 ))}
               </select>
             </div>
-            <div className="pt-6">
-              <button
-                onClick={async () => {
-                  if (!selectedPlayer) return;
-                  setIsChangingTeam(true);
-                  setTeamChangeMessage('');
-                  const newTeamId = selectedTeamId || null;
-                  const result = await updateUser(selectedPlayer, { team_id: newTeamId });
-                  if (result) {
-                    // Update local state
-                    setUsers(prev => prev.map(u => u.id === selectedPlayer ? { ...u, team_id: newTeamId } : u));
-                    const team = teams.find(t => t.id === newTeamId);
-                    setTeamChangeMessage(`Player moved to ${team?.name || 'Free Agent'}!`);
-                  } else {
-                    setTeamChangeMessage('Failed to update team');
-                  }
-                  setIsChangingTeam(false);
-                }}
-                disabled={isChangingTeam}
-                className="px-4 py-2 bg-mc-accent text-white font-bold rounded hover:bg-mc-accent-hover transition-colors disabled:opacity-50"
-              >
-                {isChangingTeam ? 'Updating...' : 'Update Team'}
-              </button>
-            </div>
+            {isChangingTeam && (
+              <div className="text-sm text-mc-text-muted">Updating...</div>
+            )}
           </div>
           {teamChangeMessage && (
             <div className={`mt-2 text-sm ${teamChangeMessage.includes('Failed') ? 'text-red-500' : 'text-green-500'}`}>

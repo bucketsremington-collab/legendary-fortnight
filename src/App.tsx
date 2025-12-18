@@ -14,7 +14,7 @@ import StatsAdmin from './pages/StatsAdmin';
 import AuthCallback from './pages/AuthCallback';
 
 function AppRoutes() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, session } = useAuth();
 
   // Show loading spinner briefly, but don't block forever
   if (isLoading) {
@@ -25,10 +25,13 @@ function AppRoutes() {
     );
   }
 
+  // Show landing page if not authenticated OR no valid session
+  const showLanding = !isAuthenticated && !session;
+
   return (
     <Routes>
       {/* Landing page for non-authenticated users, Home for authenticated */}
-      <Route path="/" element={isAuthenticated ? <Layout><Home /></Layout> : <Landing />} />
+      <Route path="/" element={showLanding ? <Landing /> : <Layout><Home /></Layout>} />
       
       {/* Auth callback for OAuth */}
       <Route path="/auth/callback" element={<AuthCallback />} />
