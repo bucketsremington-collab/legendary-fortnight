@@ -1,0 +1,156 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dark theme (default) */
+:root,
+[data-theme="dark"] {
+  --mc-dark: #1a1a2e;
+  --mc-darker: #16162a;
+  --mc-surface: #252542;
+  --mc-surface-light: #2f2f4a;
+  --mc-border: #3d3d5c;
+  --mc-accent: #3B82F6;
+  --mc-accent-hover: #60A5FA;
+  --mc-gold: #FCDB05;
+  --mc-text: #e0e0e0;
+  --mc-text-muted: #8888aa;
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --mc-dark: #f8f9fa;
+  --mc-darker: #e9ecef;
+  --mc-surface: #ffffff;
+  --mc-surface-light: #f1f3f5;
+  --mc-border: #ced4da;
+  --mc-accent: #2563EB;
+  --mc-accent-hover: #3B82F6;
+  --mc-gold: #D4A000;
+  --mc-text: #212529;
+  --mc-text-muted: #6c757d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'VT323', monospace;
+  background-color: var(--mc-dark);
+  color: var(--mc-text);
+  min-height: 100vh;
+  font-size: 18px;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--mc-darker);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mc-border);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mc-surface-light);
+}
+
+/* Minecraft head avatar */
+.mc-head {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border-radius: 4px;
+}
+
+/* Minecraft card style */
+.mc-card {
+  background: var(--mc-surface);
+  border: 2px solid var(--mc-border);
+  border-radius: 8px;
+}
+
+[data-theme="light"] .mc-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mc-card-dark {
+  background: var(--mc-darker);
+  border: 2px solid var(--mc-border);
+  border-radius: 8px;
+}
+
+.mc-btn {
+  background: linear-gradient(180deg, var(--mc-accent) 0%, var(--mc-accent-hover) 100%);
+  border: 2px solid var(--mc-border);
+  color: #ffffff;
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.1s;
+  font-weight: bold;
+  border-radius: 4px;
+}
+
+.mc-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 0 var(--mc-border);
+}
+
+.mc-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Focus styles */
+input:focus, textarea:focus, button:focus {
+  outline: 2px solid var(--mc-accent);
+  outline-offset: 2px;
+}
+
+/* Link styles */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  opacity: 0.9;
+}
+
+/* Tier badge styles */
+.tier-1 { background: linear-gradient(180deg, #FFD700 0%, #FFA500 100%); color: #1a1a1a; }
+.tier-2 { background: linear-gradient(180deg, #C0C0C0 0%, #A0A0A0 100%); color: #1a1a1a; }
+.tier-3 { background: linear-gradient(180deg, #CD7F32 0%, #8B4513 100%); color: white; }
+.tier-4 { background: var(--mc-surface-light); color: var(--mc-text); border: 1px solid var(--mc-border); }
+.tier-5 { background: var(--mc-darker); color: var(--mc-text-muted); border: 1px solid var(--mc-border); }
+
+/* Theme transition */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
