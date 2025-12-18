@@ -118,8 +118,8 @@ interface AuthContextType {
   loginWithDiscord: () => Promise<void>;
   logout: () => Promise<void>;
   register: (username: string, email: string, password: string, minecraftUsername: string) => Promise<boolean>;
-  fetchDiscordGuilds: () => Promise<void>;
-  fetchMBAServerInfo: () => Promise<void>;
+  fetchDiscordGuilds: (forceRefresh?: boolean) => Promise<void>;
+  fetchMBAServerInfo: (forceRefresh?: boolean) => Promise<void>;
   syncRolesToDatabase: () => Promise<{ success: boolean; message: string }>;
 }
 
@@ -153,11 +153,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check if user is in MBA Discord server
   const isInMBAServer = discordGuilds.some(g => g.id === MBA_DISCORD_SERVER_ID);
 
-  // Fetch user's Discord guilds
-  const fetchDiscordGuilds = async () => {
+  // Cache keys and duration (5 minutes)
+  const DISCORD_CACHE_KEY = 'mba_discord_cache';
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+  // Get cached Discord data
+  const getCachedDiscordData = () => {
+    try {
+      const cached = localStorage.getItem(DISCORD_CACHE_KEY);
+      if (cached) {
+        const data = JSON.parse(cached);
+        const age = Date.now() - data.timestamp;
+        if (age < CACHE_DURATION) {
+          return data;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to read Discord cache:', e);
+    }
+    return null;
+  };
+
+  // Save Discord data to cache
+  const setCachedDiscordData = (guilds: DiscordGuild[], memberInfo: DiscordMemberInfo | null, roles: MBARoles) => {
+    try {
+      localStorage.setItem(DISCORD_CACHE_KEY, JSON.stringify({
+        timestamp: Date.now(),
+        guilds,
+        memberInfo,
+        roles
+      }));
+    } catch (e) {
+      console.warn('Failed to save Discord cache:', e);
+    }
+  };
+
+  // Fetch user's Discord guilds (with caching)
+  const fetchDiscordGuilds = async (forceRefresh = false) => {
     if (!session?.provider_token) {
       console.log('No provider token available');
       return;
+    }
+
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = getCachedDiscordData();
+      if (cached) {
+        console.log('Using cached Discord data (age:', Math.round((Date.now() - cached.timestamp) / 1000), 'seconds)');
+        setDiscordGuilds(cached.guilds || []);
+        if (cached.memberInfo) {
+          setMbaServerMember(cached.memberInfo);
+        }
+        if (cached.roles) {
+          setMbaRoles(cached.roles);
+        }
+        return;
+      }
     }
 
     try {
@@ -171,6 +222,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const guilds: DiscordGuild[] = await response.json();
         setDiscordGuilds(guilds);
         console.log('User guilds:', guilds.map(g => g.name));
+      } else if (response.status === 429) {
+        console.warn('Rate limited by Discord API, using cached data if available');
+        const cached = getCachedDiscordData();
+        if (cached?.guilds) {
+          setDiscordGuilds(cached.guilds);
+        }
       } else {
         console.error('Failed to fetch guilds:', response.status);
       }
@@ -179,8 +236,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Fetch MBA server member info (roles, nickname, etc.)
-  const fetchMBAServerInfo = async () => {
+  // Fetch MBA server member info (roles, nickname, etc.) - with caching
+  const fetchMBAServerInfo = async (forceRefresh = false) => {
     if (!session?.provider_token) {
       console.log('No provider token available');
       return;
@@ -189,6 +246,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!MBA_DISCORD_SERVER_ID) {
       console.log('MBA Discord server ID not configured');
       return;
+    }
+
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = getCachedDiscordData();
+      if (cached?.memberInfo) {
+        console.log('Using cached member info');
+        setMbaServerMember(cached.memberInfo);
+        if (cached.roles) {
+          setMbaRoles(cached.roles);
+        }
+        return;
+      }
     }
 
     try {
@@ -206,15 +276,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const memberData = await memberResponse.json();
         const roles = memberData.roles || [];
         
-        setMbaServerMember({
+        const memberInfo: DiscordMemberInfo = {
           roles,
           nick: memberData.nick,
           joined_at: memberData.joined_at,
-        });
+        };
+        
+        setMbaServerMember(memberInfo);
         
         // Parse and set MBA roles
         const parsedRoles = parseMBARoles(roles);
         setMbaRoles(parsedRoles);
+        
+        // Update cache with new data
+        setCachedDiscordData(discordGuilds, memberInfo, parsedRoles);
         
         console.log('MBA Server member info:', memberData);
         console.log('Parsed MBA roles:', parsedRoles);
@@ -222,6 +297,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('User is not a member of the MBA Discord server');
         setMbaServerMember(null);
         setMbaRoles(defaultMBARoles);
+      } else if (memberResponse.status === 429) {
+        console.warn('Rate limited by Discord API for member info, using cached data');
+        const cached = getCachedDiscordData();
+        if (cached?.memberInfo) {
+          setMbaServerMember(cached.memberInfo);
+          if (cached.roles) {
+            setMbaRoles(cached.roles);
+          }
+        }
       } else {
         console.error('Failed to fetch member info:', memberResponse.status);
       }
@@ -240,8 +324,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, message: 'Not a member of the MBA Discord server' };
     }
 
-    // First refresh the Discord roles
-    await fetchMBAServerInfo();
+    // Force refresh Discord roles (bypass cache for manual sync)
+    await fetchMBAServerInfo(true);
 
     // Determine updates based on roles
     const updates: Partial<User> = {};

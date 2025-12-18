@@ -213,10 +213,10 @@ export default function Profile() {
     <div className="max-w-2xl mx-auto space-y-4">
       {/* Profile Card */}
       <div className="mc-card overflow-hidden">
-        {/* Header with team color */}
+        {/* Header with team color (gray for free agents) */}
         <div 
           className="h-20"
-          style={{ backgroundColor: team?.primary_color || '#3B82F6' }}
+          style={{ backgroundColor: team?.primary_color || '#6B7280' }}
         />
         
         {/* Profile Content */}
@@ -230,10 +230,28 @@ export default function Profile() {
             />
           </div>
 
-          {/* Name & IGN */}
+          {/* Name & IGN with Staff Badges */}
           <div className="mb-4 flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-mc-text">{user.minecraft_username}</h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl font-bold text-mc-text">{user.minecraft_username}</h1>
+                {/* Staff badges next to name - prominent display */}
+                {isOwnProfile && mbaRoles.isOwner && (
+                  <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded">
+                    👑 OWNER
+                  </span>
+                )}
+                {isOwnProfile && mbaRoles.isDeveloper && (
+                  <span className="px-2 py-0.5 bg-purple-500 text-white text-xs font-bold rounded">
+                    💻 DEV
+                  </span>
+                )}
+                {isOwnProfile && mbaRoles.isModerator && (
+                  <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded">
+                    🛡️ MOD
+                  </span>
+                )}
+              </div>
               <p className="text-mc-text-muted">@{user.username}</p>
             </div>
             {isOwnProfile && !isEditing && (
@@ -318,9 +336,18 @@ export default function Profile() {
           )}
 
           {!team && (
-            <span className="inline-block px-3 py-1.5 bg-mc-surface-light border border-mc-border text-mc-text-muted mb-4">
-              Free Agent
-            </span>
+            <Link 
+              to="/free-agents"
+              className="inline-flex items-center gap-2 px-3 py-1.5 bg-mc-surface-light border border-mc-border hover:border-mc-accent transition-colors mb-4"
+            >
+              <div 
+                className="w-5 h-5 rounded flex items-center justify-center text-white font-bold text-xs"
+                style={{ backgroundColor: '#6B7280' }}
+              >
+                FA
+              </div>
+              <span className="text-mc-text font-bold">Free Agent</span>
+            </Link>
           )}
 
           {/* Discord Info */}
