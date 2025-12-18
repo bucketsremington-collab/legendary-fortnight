@@ -298,44 +298,101 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Load user from Supabase auth data
   const loadUserFromSupabaseAuth = async (authUser: SupabaseUser) => {
-    const users = await fetchUsers();
-    
-    // Look for a user that matches by Discord ID or email
-    const discordId = authUser.user_metadata?.provider_id || authUser.user_metadata?.sub;
-    const email = authUser.email;
-    
-    let matchedUser = users.find(u => 
-      (u.id === `discord-${discordId}`) ||
-      (email && u.username.toLowerCase() === email.toLowerCase())
-    );
+    try {
+      // First check localStorage for cached user
+      const storedUser = localStorage.getItem('mba_user');
+      if (storedUser) {
+        try {
+          const cached = JSON.parse(storedUser);
+          // Verify the cached user matches the auth user
+          const discordId = authUser.user_metadata?.provider_id || authUser.user_metadata?.sub;
+          if (cached.id === `discord-${discordId}`) {
+            setUser(cached);
+            return; // Use cached user, don't hit database
+          }
+        } catch {
+          // Invalid cached data, continue to fetch
+        }
+      }
 
-    if (matchedUser) {
-      setUser(matchedUser);
-      localStorage.setItem('mba_user', JSON.stringify(matchedUser));
-    } else {
-      // Create a new user from Discord data
+      // Fetch users from database with timeout
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 5000)
+      );
+      
+      let users: User[] = [];
+      try {
+        users = await Promise.race([fetchUsers(), timeoutPromise]) as User[];
+      } catch (e) {
+        console.warn('Failed to fetch users, creating new user:', e);
+      }
+      
+      // Look for a user that matches by Discord ID or email
+      const discordId = authUser.user_metadata?.provider_id || authUser.user_metadata?.sub;
+      const email = authUser.email;
+      
+      let matchedUser = users.find(u => 
+        (u.id === `discord-${discordId}`) ||
+        (email && u.username.toLowerCase() === email.toLowerCase())
+      );
+
+      if (matchedUser) {
+        setUser(matchedUser);
+        localStorage.setItem('mba_user', JSON.stringify(matchedUser));
+      } else {
+        // Create a new user from Discord data
+        const discordUsername = authUser.user_metadata?.full_name || 
+                               authUser.user_metadata?.name ||
+                               authUser.email?.split('@')[0] ||
+                               'NewPlayer';
+        const avatarUrl = authUser.user_metadata?.avatar_url || null;
+        
+        const newUser: User = {
+          id: `discord-${discordId || Date.now()}`,
+          username: discordUsername,
+          display_name: discordUsername,
+          avatar_url: avatarUrl,
+          bio: 'New MBA player! Connected via Discord.',
+          team_id: null,
+          role: 'fan',
+          minecraft_username: discordUsername,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        // Set user immediately (don't wait for database)
+        setUser(newUser);
+        localStorage.setItem('mba_user', JSON.stringify(newUser));
+
+        // Try to create in database in background
+        createUser(newUser).catch(err => {
+          console.warn('Failed to create user in database:', err);
+        });
+      }
+    } catch (error) {
+      console.error('Error in loadUserFromSupabaseAuth:', error);
+      // Create minimal user from auth data as fallback
+      const discordId = authUser.user_metadata?.provider_id || authUser.user_metadata?.sub;
       const discordUsername = authUser.user_metadata?.full_name || 
                              authUser.user_metadata?.name ||
                              authUser.email?.split('@')[0] ||
                              'NewPlayer';
-      const avatarUrl = authUser.user_metadata?.avatar_url || null;
       
-      const newUser: Omit<User, 'created_at' | 'updated_at'> = {
+      const fallbackUser: User = {
         id: `discord-${discordId || Date.now()}`,
         username: discordUsername,
         display_name: discordUsername,
-        avatar_url: avatarUrl,
-        bio: 'New MBA player! Connected via Discord.',
+        avatar_url: authUser.user_metadata?.avatar_url || null,
+        bio: null,
         team_id: null,
         role: 'fan',
         minecraft_username: discordUsername,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
-
-      const createdUser = await createUser(newUser);
-      if (createdUser) {
-        setUser(createdUser);
-        localStorage.setItem('mba_user', JSON.stringify(createdUser));
-      }
+      
+      setUser(fallbackUser);
+      localStorage.setItem('mba_user', JSON.stringify(fallbackUser));
     }
   };
 
@@ -344,8 +401,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
     
     const initAuth = async () => {
+      console.log('Initializing auth...');
+      
       try {
-        // Check for Supabase session
+        // First, check localStorage for cached user (instant)
+        const storedUser = localStorage.getItem('mba_user');
+        if (storedUser && isMounted) {
+          try {
+            const cached = JSON.parse(storedUser);
+            setUser(cached);
+            console.log('Loaded cached user:', cached.username);
+          } catch {
+            localStorage.removeItem('mba_user');
+          }
+        }
+
+        // Then check for Supabase session
         if (isSupabaseConfigured() && supabase) {
           const { data: { session: currentSession }, error } = await supabase.auth.getSession();
           
@@ -354,21 +425,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           
           if (currentSession && isMounted) {
+            console.log('Found Supabase session');
             setSession(currentSession);
             setSupabaseUser(currentSession.user);
+            
+            // Load user data (this uses cache first)
             await loadUserFromSupabaseAuth(currentSession.user);
-            setIsLoading(false);
-            return;
-          }
-        }
-
-        // Fallback: Check localStorage for legacy sessions
-        const storedUser = localStorage.getItem('mba_user');
-        if (storedUser && isMounted) {
-          try {
-            setUser(JSON.parse(storedUser));
-          } catch {
-            localStorage.removeItem('mba_user');
           }
         }
       } catch (error) {
@@ -380,12 +442,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Set a timeout to prevent infinite loading
+    // Set a shorter timeout to prevent infinite loading
     const timeout = setTimeout(() => {
       if (isMounted) {
+        console.log('Auth timeout reached, setting loading to false');
         setIsLoading(false);
       }
-    }, 5000);
+    }, 3000);
 
     initAuth();
 
@@ -394,7 +457,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isSupabaseConfigured() && supabase) {
       const { data } = supabase.auth.onAuthStateChange(
         async (event, newSession) => {
-          console.log('Auth state changed:', event, newSession?.user?.email);
+          console.log('Auth state changed:', event);
           
           if (isMounted) {
             setSession(newSession);
@@ -404,6 +467,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               await loadUserFromSupabaseAuth(newSession.user);
             } else if (event === 'SIGNED_OUT') {
               setUser(null);
+              setMbaRoles(defaultMBARoles);
+              setDiscordGuilds([]);
+              setMbaServerMember(null);
               localStorage.removeItem('mba_user');
             }
           }
