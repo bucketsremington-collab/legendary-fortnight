@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { upsertPlayerStats, fetchPlayerStatsByUserIdAndSeason, checkSupabaseConnection, fetchUsers, fetchTeams, fetchPlayerStats, updateUser } from '../data/dataService';
+import { upsertPlayerStats, fetchPlayerStatsByUserIdAndSeason, checkSupabaseConnection, fetchUsers, fetchTeams, fetchPlayerStats, updateUser, resetAllTeamsToDefaults } from '../data/dataService';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { calculateStats } from '../utils/helpers';
 import MinecraftHead from '../components/MinecraftHead';
@@ -245,6 +245,27 @@ export default function StatsAdmin() {
   const selectedUser = users.find(u => u.id === selectedPlayer);
   const selectedTeam = selectedUser?.team_id ? teams.find(t => t.id === selectedUser.team_id) : null;
 
+  const [isResettingTeams, setIsResettingTeams] = useState(false);
+  const [resetTeamsMessage, setResetTeamsMessage] = useState('');
+
+  const handleResetAllTeams = async () => {
+    if (!confirm('Are you sure you want to reset ALL teams to Season 0 defaults? This will set all wins, losses, and championships to 0.')) {
+      return;
+    }
+    setIsResettingTeams(true);
+    setResetTeamsMessage('');
+    const success = await resetAllTeamsToDefaults();
+    if (success) {
+      setResetTeamsMessage('All teams reset to Season 0 defaults!');
+      // Refresh teams data
+      const refreshedTeams = await fetchTeams();
+      setTeams(refreshedTeams);
+    } else {
+      setResetTeamsMessage('Failed to reset teams');
+    }
+    setIsResettingTeams(false);
+  };
+
   return (
     <div className="space-y-6">
       <div className="mc-card p-6">
@@ -255,10 +276,24 @@ export default function StatsAdmin() {
               Manage player statistics. {isSupabaseConnected ? 'Data saves to Supabase database.' : 'Data saves to local storage.'}
             </p>
           </div>
-          <div className={`px-3 py-1 rounded text-sm font-bold ${isSupabaseConnected ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'}`}>
-            {isSupabaseConnected ? '● Database Connected' : '○ Local Storage Mode'}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleResetAllTeams}
+              disabled={isResettingTeams || !isSupabaseConnected}
+              className="px-3 py-1 bg-red-600 text-white text-sm font-bold rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              {isResettingTeams ? 'Resetting...' : 'Reset All Teams'}
+            </button>
+            <div className={`px-3 py-1 rounded text-sm font-bold ${isSupabaseConnected ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'}`}>
+              {isSupabaseConnected ? '● Database Connected' : '○ Local Storage Mode'}
+            </div>
           </div>
         </div>
+        {resetTeamsMessage && (
+          <div className={`mt-2 text-sm ${resetTeamsMessage.includes('Failed') ? 'text-red-500' : 'text-green-500'}`}>
+            {resetTeamsMessage}
+          </div>
+        )}
       </div>
 
       {/* Team & Player Selection */}
