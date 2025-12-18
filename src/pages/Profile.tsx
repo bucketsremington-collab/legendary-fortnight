@@ -52,7 +52,7 @@ function TeamLogo({ team, size = 40 }: { team: Team, size?: number }) {
 
 export default function Profile() {
   const { username } = useParams<{ username: string }>();
-  const { user: currentUser, mbaRoles, isInMBAServer } = useAuth();
+  const { user: currentUser, mbaRoles, isInMBAServer, syncRolesToDatabase } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [stats, setStats] = useState<PlayerStats | null>(null);
@@ -67,6 +67,10 @@ export default function Profile() {
   const [editMinecraftUsername, setEditMinecraftUsername] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  
+  // Sync roles state
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
 
   // Check if this is the current user's profile
   const isOwnProfile = currentUser?.id === user?.id || 
@@ -329,7 +333,7 @@ export default function Profile() {
           
           {/* Discord Roles - only show on own profile if in MBA server */}
           {isOwnProfile && isInMBAServer && getActiveRoles().length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-4">
               {getActiveRoles().map(role => (
                 <span 
                   key={role}
@@ -348,6 +352,39 @@ export default function Profile() {
                   {role}
                 </span>
               ))}
+            </div>
+          )}
+          
+          {/* Sync Roles Button - only show on own profile if in MBA server */}
+          {isOwnProfile && isInMBAServer && (
+            <div className="flex items-center gap-3 mb-4">
+              <button
+                onClick={async () => {
+                  setIsSyncing(true);
+                  setSyncMessage('');
+                  const result = await syncRolesToDatabase();
+                  setSyncMessage(result.message);
+                  setIsSyncing(false);
+                  
+                  // Reload profile data if sync was successful
+                  if (result.success && result.message !== 'Already synced - no changes needed') {
+                    // Refresh the page data
+                    window.location.reload();
+                  }
+                }}
+                disabled={isSyncing}
+                className="px-3 py-1.5 bg-[#5865F2] hover:bg-[#4752C4] text-white text-sm font-bold rounded transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <svg className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {isSyncing ? 'Syncing...' : 'Sync Discord Roles'}
+              </button>
+              {syncMessage && (
+                <span className={`text-sm ${syncMessage.includes('Failed') ? 'text-red-500' : 'text-green-500'}`}>
+                  {syncMessage}
+                </span>
+              )}
             </div>
           )}
         </div>

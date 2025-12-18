@@ -151,6 +151,26 @@ export async function fetchTeamMembers(teamId: string): Promise<User[]> {
   return data || [];
 }
 
+// Fetch users without a team (free agents by database status)
+export async function fetchFreeAgentUsers(): Promise<User[]> {
+  if (!isSupabaseConfigured()) {
+    return mockUsers.filter(u => u.team_id === null && u.role === 'player');
+  }
+
+  const { data, error } = await supabase!
+    .from('users')
+    .select('*')
+    .is('team_id', null)
+    .eq('role', 'player');
+
+  if (error) {
+    console.error('Error fetching free agent users:', error);
+    return mockUsers.filter(u => u.team_id === null && u.role === 'player');
+  }
+
+  return data || [];
+}
+
 export async function createUser(user: Omit<User, 'created_at' | 'updated_at'>): Promise<User | null> {
   if (!isSupabaseConfigured()) {
     console.log('Demo mode: User not saved to database');

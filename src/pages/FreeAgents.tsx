@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchFreeAgentListings, fetchUserById, fetchPlayerStatsByUserId } from '../data/dataService';
+import { fetchFreeAgentListings, fetchUserById, fetchPlayerStatsByUserId, fetchFreeAgentUsers } from '../data/dataService';
 import { useAuth } from '../context/AuthContext';
 import { User, PlayerStats } from '../types';
 import { calculateStats } from '../utils/helpers';
@@ -20,6 +20,7 @@ interface FreeAgentListing {
 export default function FreeAgents() {
   const { loginWithDiscord, isAuthenticated } = useAuth();
   const [listings, setListings] = useState<FreeAgentListing[]>([]);
+  const [freeAgentUsers, setFreeAgentUsers] = useState<User[]>([]);
   const [users, setUsers] = useState<Map<string, User>>(new Map());
   const [stats, setStats] = useState<Map<string, PlayerStats>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -28,13 +29,20 @@ export default function FreeAgents() {
     async function loadData() {
       setLoading(true);
       try {
-        const listingsData = await fetchFreeAgentListings();
+        // Fetch both listing-based free agents and database free agents
+        const [listingsData, freeAgentsData] = await Promise.all([
+          fetchFreeAgentListings(),
+          fetchFreeAgentUsers()
+        ]);
+        
         setListings(listingsData);
+        setFreeAgentUsers(freeAgentsData);
 
         // Fetch users and stats for all listings
         const usersMap = new Map<string, User>();
         const statsMap = new Map<string, PlayerStats>();
         
+        // Add listing users
         await Promise.all(
           listingsData.map(async (listing) => {
             const user = await fetchUserById(listing.user_id);
@@ -43,6 +51,17 @@ export default function FreeAgents() {
               const playerStats = await fetchPlayerStatsByUserId(user.id);
               if (playerStats) statsMap.set(user.id, playerStats);
             }
+          })
+        );
+        
+        // Add free agent users stats
+        await Promise.all(
+          freeAgentsData.map(async (user) => {
+            if (!usersMap.has(user.id)) {
+              usersMap.set(user.id, user);
+            }
+            const playerStats = await fetchPlayerStatsByUserId(user.id);
+            if (playerStats) statsMap.set(user.id, playerStats);
           })
         );
         
@@ -166,9 +185,63 @@ export default function FreeAgents() {
             </div>
           );
         })}
+        
+        {/* Show users who have synced their Free Agent role but don't have a listing */}
+        {freeAgentUsers
+          .filter(user => !listings.some(l => l.user_id === user.id))
+          .map(user => {
+            const playerStats = stats.get(user.id);
+            const calculated = playerStats ? calculateStats(playerStats) : null;
+
+            return (
+              <div key={user.id} className="mc-card p-4">
+                <div className="flex items-start gap-4">
+                  {/* Avatar */}
+                  <Link to={`/profile/${user.username}`}>
+                    <MinecraftHead username={user.minecraft_username} size={56} />
+                  </Link>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <Link to={`/profile/${user.username}`} className="font-bold text-mc-text hover:text-mc-accent">
+                        {user.minecraft_username}
+                      </Link>
+                      <span className="text-xs px-2 py-0.5 bg-gray-500 text-white">
+                        Free Agent
+                      </span>
+                    </div>
+
+                    {user.bio && (
+                      <p className="text-mc-text-muted mb-3">{user.bio}</p>
+                    )}
+
+                    {/* Stats if available */}
+                    {calculated && (
+                      <div className="flex gap-4 text-sm mb-3 flex-wrap">
+                        <span className="text-mc-text">
+                          <strong className="text-mc-accent">{calculated.ppg.toFixed(1)}</strong> PPG
+                        </span>
+                        <span className="text-mc-text">
+                          <strong className="text-mc-accent">{calculated.apg.toFixed(1)}</strong> APG
+                        </span>
+                        <span className="text-mc-text">
+                          <strong className="text-mc-accent">{calculated.rpg.toFixed(1)}</strong> RPG
+                        </span>
+                      </div>
+                    )}
+
+                    <p className="text-mc-text-muted text-sm italic">
+                      View profile to contact via Discord
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
       </div>
 
-      {listings.length === 0 && (
+      {listings.length === 0 && freeAgentUsers.length === 0 && (
         <div className="mc-card p-8 text-center text-mc-text-muted">
           No free agents listed right now.
         </div>

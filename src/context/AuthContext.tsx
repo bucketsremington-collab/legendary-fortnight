@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
-import { fetchUsers, createUser } from '../data/dataService';
+import { fetchUsers, createUser, updateUser } from '../data/dataService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -119,6 +119,7 @@ interface AuthContextType {
   register: (username: string, email: string, password: string, minecraftUsername: string) => Promise<boolean>;
   fetchDiscordGuilds: () => Promise<void>;
   fetchMBAServerInfo: () => Promise<void>;
+  syncRolesToDatabase: () => Promise<{ success: boolean; message: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -184,6 +185,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (!MBA_DISCORD_SERVER_ID) {
+      console.log('MBA Discord server ID not configured');
+      return;
+    }
+
     try {
       // Get member info for the MBA server
       const memberResponse = await fetch(
@@ -220,6 +226,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Error fetching MBA server info:', error);
+    }
+  };
+
+  // Sync Discord roles to database (updates team_id and role based on Discord roles)
+  const syncRolesToDatabase = async (): Promise<{ success: boolean; message: string }> => {
+    if (!user) {
+      return { success: false, message: 'Not logged in' };
+    }
+
+    if (!isInMBAServer) {
+      return { success: false, message: 'Not a member of the MBA Discord server' };
+    }
+
+    // First refresh the Discord roles
+    await fetchMBAServerInfo();
+
+    // Determine updates based on roles
+    const updates: Partial<User> = {};
+    let changes: string[] = [];
+
+    // Update team_id based on team role
+    if (mbaRoles.teamId && user.team_id !== mbaRoles.teamId) {
+      updates.team_id = mbaRoles.teamId;
+      changes.push(`Team updated`);
+    } else if (!mbaRoles.teamId && mbaRoles.isFreeAgent && user.team_id !== null) {
+      updates.team_id = null;
+      changes.push(`Set as Free Agent (no team)`);
+    }
+
+    // Update role based on position roles
+    let newRole: User['role'] = user.role;
+    if (mbaRoles.isStaff) {
+      newRole = 'admin';
+    } else if (mbaRoles.isFranchiseOwner || mbaRoles.isGeneralManager || mbaRoles.isHeadCoach || mbaRoles.isAssistantCoach) {
+      newRole = 'coach';
+    } else if (mbaRoles.teamId || mbaRoles.isFreeAgent) {
+      newRole = 'player';
+    }
+
+    if (newRole !== user.role) {
+      updates.role = newRole;
+      changes.push(`Role updated to ${newRole}`);
+    }
+
+    // If no changes needed
+    if (Object.keys(updates).length === 0) {
+      return { success: true, message: 'Already synced - no changes needed' };
+    }
+
+    // Apply updates
+    const result = await updateUser(user.id, updates);
+    if (result) {
+      // Update local user state
+      const updatedUser = { ...user, ...updates };
+      setUser(updatedUser);
+      localStorage.setItem('mba_user', JSON.stringify(updatedUser));
+      return { success: true, message: changes.join(', ') };
+    } else {
+      return { success: false, message: 'Failed to update database' };
     }
   };
 
@@ -460,6 +525,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       fetchDiscordGuilds,
       fetchMBAServerInfo,
+      syncRolesToDatabase,
     }}>
       {children}
     </AuthContext.Provider>
