@@ -8,7 +8,7 @@ import { User } from '../types';
 import MinecraftHead from './MinecraftHead';
 
 export default function Navbar() {
-  const { user, isAuthenticated, logout, loginWithDiscord } = useAuth();
+  const { user, isAuthenticated, logout, loginWithDiscord, mbaRoles } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -69,6 +69,11 @@ export default function Navbar() {
             <Link to="/free-agents" className="text-mc-text-muted hover:text-mc-text transition-colors">
               Free Agents
             </Link>
+            {mbaRoles.isFranchiseOwner && (
+              <Link to="/franchise" className="text-mc-gold hover:text-yellow-400 transition-colors font-bold">
+                My Franchise
+              </Link>
+            )}
           </div>
 
           {/* Search */}
@@ -150,6 +155,9 @@ export default function Navbar() {
             <Link to="/stats" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-mc-text">Stats</Link>
             <Link to="/games" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-mc-text">Games</Link>
             <Link to="/free-agents" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-mc-text">Free Agents</Link>
+            {mbaRoles.isFranchiseOwner && (
+              <Link to="/franchise" onClick={() => setMobileMenuOpen(false)} className="block py-2 text-mc-gold font-bold">My Franchise</Link>
+            )}
             
             {/* Mobile Theme Toggle */}
             <button

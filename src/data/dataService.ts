@@ -75,7 +75,7 @@ export async function updateTeam(id: string, updates: Partial<Team>): Promise<bo
   return true;
 }
 
-// Reset all teams to Season 0 defaults
+// Reset all teams to Season 0 defaults (wins, losses, championships only)
 export async function resetAllTeamsToDefaults(): Promise<boolean> {
   if (!isSupabaseConfigured()) {
     console.log('Demo mode: Team reset not saved to database');
@@ -85,7 +85,6 @@ export async function resetAllTeamsToDefaults(): Promise<boolean> {
   const { error } = await supabase!
     .from('teams')
     .update({
-      founded_date: 'Season 0',
       wins: 0,
       losses: 0,
       championships: 0

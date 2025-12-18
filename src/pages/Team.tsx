@@ -133,7 +133,7 @@ export default function TeamPage() {
             </div>
             <div className="text-white">
               <h1 className="text-3xl font-bold">{team.name}</h1>
-              <p className="opacity-80">Est. {team.founded_date}</p>
+              <p className="opacity-80">Est. Season 0</p>
             </div>
           </div>
         </div>
