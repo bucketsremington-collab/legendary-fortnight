@@ -1,19 +1,18 @@
 import { Link } from 'react-router-dom';
-import { User, PlayerStats } from '../types';
+import { User, PlayerStats, Team } from '../types';
 import { calculateStats } from '../utils/helpers';
-import { getTeamById } from '../data/mockData';
 import { TrendingUp, Award } from 'lucide-react';
 import MinecraftHead from './MinecraftHead';
 
 interface PlayerCardProps {
   player: User;
   stats?: PlayerStats;
+  team?: Team | null;
   accoladeCount?: number;
   showStats?: boolean;
 }
 
-export default function PlayerCard({ player, stats, accoladeCount = 0, showStats = true }: PlayerCardProps) {
-  const team = player.team_id ? getTeamById(player.team_id) : null;
+export default function PlayerCard({ player, stats, team, accoladeCount = 0, showStats = true }: PlayerCardProps) {
   const calculated = stats ? calculateStats(stats) : null;
 
   return (

@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { mockTeams, getTeamMembers } from '../data/mockData';
+import { fetchTeams, fetchTeamMembers } from '../data/dataService';
+import { Team, User } from '../types';
 import MinecraftHead from '../components/MinecraftHead';
 
 // Team Logo component with fallback to abbreviation
-function TeamLogo({ team, size = 40 }: { team: typeof mockTeams[0], size?: number }) {
+function TeamLogo({ team, size = 40 }: { team: Team, size?: number }) {
   if (team.logo_url) {
     return (
       <img 
@@ -32,12 +34,51 @@ function TeamLogo({ team, size = 40 }: { team: typeof mockTeams[0], size?: numbe
 }
 
 export default function Teams() {
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamMembers, setTeamMembers] = useState<Map<string, User[]>>(new Map());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      try {
+        const teamsData = await fetchTeams();
+        setTeams(teamsData);
+
+        // Fetch members for all teams
+        const membersMap = new Map<string, User[]>();
+        await Promise.all(
+          teamsData.map(async (team) => {
+            const members = await fetchTeamMembers(team.id);
+            membersMap.set(team.id, members);
+          })
+        );
+        setTeamMembers(membersMap);
+      } catch (err) {
+        console.error('Error loading teams:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const getTeamMembersLocal = (teamId: string) => teamMembers.get(teamId) || [];
+
   // Sort teams by win percentage
-  const sortedTeams = [...mockTeams].sort((a, b) => {
+  const sortedTeams = [...teams].sort((a, b) => {
     const aWinPct = a.wins / (a.wins + a.losses) || 0;
     const bWinPct = b.wins / (b.wins + b.losses) || 0;
     return bWinPct - aWinPct;
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-mc-text-muted">Loading teams...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -64,7 +105,7 @@ export default function Teams() {
               const winPct = team.wins + team.losses > 0 
                 ? (team.wins / (team.wins + team.losses)).toFixed(3).slice(1) 
                 : '.000';
-              const members = getTeamMembers(team.id);
+              const members = getTeamMembersLocal(team.id);
 
               return (
                 <tr key={team.id} className="border-b border-mc-border hover:bg-mc-surface-light transition-colors">
@@ -104,8 +145,8 @@ export default function Teams() {
 
       {/* Team Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {mockTeams.map(team => {
-          const members = getTeamMembers(team.id);
+        {teams.map(team => {
+          const members = getTeamMembersLocal(team.id);
           
           return (
             <Link key={team.id} to={`/team/${team.id}`} className="mc-card overflow-hidden hover:border-mc-accent transition-colors">

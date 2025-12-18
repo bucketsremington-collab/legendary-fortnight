@@ -1,19 +1,19 @@
 import { Link } from 'react-router-dom';
-import { Game } from '../types';
-import { getTeamById, getUserById } from '../data/mockData';
+import { Game, Team, User } from '../types';
 import { formatDateTime } from '../utils/helpers';
 import { Clock, MapPin, Trophy } from 'lucide-react';
 
 interface GameCardProps {
   game: Game;
+  homeTeam?: Team | null;
+  awayTeam?: Team | null;
+  mvpPlayer?: User | null;
 }
 
-export default function GameCard({ game }: GameCardProps) {
-  const homeTeam = getTeamById(game.home_team_id);
-  const awayTeam = getTeamById(game.away_team_id);
-  const mvp = game.mvp_player_id ? getUserById(game.mvp_player_id) : null;
-
+export default function GameCard({ game, homeTeam, awayTeam, mvpPlayer }: GameCardProps) {
   if (!homeTeam || !awayTeam) return null;
+
+  const mvp = mvpPlayer || null;
 
   const isCompleted = game.status === 'completed';
   const isLive = game.status === 'live';

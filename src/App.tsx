@@ -11,6 +11,7 @@ import Stats from './pages/Stats';
 import Games from './pages/Games';
 import FreeAgents from './pages/FreeAgents';
 import StatsAdmin from './pages/StatsAdmin';
+import AuthCallback from './pages/AuthCallback';
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth();
@@ -19,6 +20,9 @@ function AppRoutes() {
     <Routes>
       {/* Landing page for non-authenticated users */}
       <Route path="/" element={isAuthenticated ? <Layout><Home /></Layout> : <Landing />} />
+      
+      {/* Auth callback for OAuth */}
+      <Route path="/auth/callback" element={<AuthCallback />} />
       
       {/* Public routes with layout */}
       <Route path="/home" element={<Layout><Home /></Layout>} />

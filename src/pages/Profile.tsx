@@ -1,16 +1,22 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
-  mockUsers,
-  mockTeams,
-  getTeamById,
-  getPlayerStatsByUserId,
-  getAccoladesByUserId,
-} from '../data/mockData';
+  fetchUserByUsername, 
+  fetchTeams, 
+  fetchPlayerStatsByUserIdAndSeason,
+  fetchAccoladesByUserId,
+  updateUser,
+} from '../data/dataService';
+import { useAuth } from '../context/AuthContext';
 import { calculateStats } from '../utils/helpers';
 import MinecraftHead from '../components/MinecraftHead';
+import { User, Team, PlayerStats, Accolade } from '../types';
+
+// Available seasons (add more as needed)
+const AVAILABLE_SEASONS = ['S0'];
 
 // Team Logo component with fallback to abbreviation
-function TeamLogo({ team, size = 40 }: { team: typeof mockTeams[0], size?: number }) {
+function TeamLogo({ team, size = 40 }: { team: Team, size?: number }) {
   if (team.logo_url) {
     return (
       <img 
@@ -34,26 +40,140 @@ function TeamLogo({ team, size = 40 }: { team: typeof mockTeams[0], size?: numbe
 
 export default function Profile() {
   const { username } = useParams<{ username: string }>();
-
-  // Find user by username
-  const user = mockUsers.find(u => u.username.toLowerCase() === username?.toLowerCase());
+  const { user: currentUser } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
+  const [team, setTeam] = useState<Team | null>(null);
+  const [stats, setStats] = useState<PlayerStats | null>(null);
+  const [accolades, setAccolades] = useState<Accolade[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [selectedSeason, setSelectedSeason] = useState<string>('S0');
   
-  if (!user) {
+  // Edit mode states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editBio, setEditBio] = useState('');
+  const [editMinecraftUsername, setEditMinecraftUsername] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+
+  // Check if this is the current user's profile
+  const isOwnProfile = currentUser?.id === user?.id || 
+                       currentUser?.username.toLowerCase() === username?.toLowerCase() ||
+                       currentUser?.minecraft_username.toLowerCase() === username?.toLowerCase();
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!username) {
+        setNotFound(true);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setNotFound(false);
+
+      // Find user from database (dataService handles fallback to mock data)
+      const foundUser = await fetchUserByUsername(username);
+
+      if (!foundUser) {
+        setNotFound(true);
+        setIsLoading(false);
+        return;
+      }
+
+      setUser(foundUser);
+
+      // Load team
+      if (foundUser.team_id) {
+        const teams = await fetchTeams();
+        const foundTeam = teams.find(t => t.id === foundUser.team_id);
+        setTeam(foundTeam || null);
+      }
+
+      // Load accolades
+      const playerAccolades = await fetchAccoladesByUserId(foundUser.id);
+      setAccolades(playerAccolades);
+
+      setIsLoading(false);
+    };
+
+    loadProfile();
+  }, [username]);
+
+  // Load stats when user or season changes
+  useEffect(() => {
+    const loadStats = async () => {
+      if (user) {
+        const playerStats = await fetchPlayerStatsByUserIdAndSeason(user.id, selectedSeason);
+        setStats(playerStats || null);
+      }
+    };
+    loadStats();
+  }, [user, selectedSeason]);
+
+  // Initialize edit values when user loads
+  useEffect(() => {
+    if (user) {
+      setEditBio(user.bio || '');
+      setEditMinecraftUsername(user.minecraft_username || '');
+    }
+  }, [user]);
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    
+    setIsSaving(true);
+    setSaveMessage('');
+
+    const updates: Partial<User> = {
+      bio: editBio,
+      minecraft_username: editMinecraftUsername,
+    };
+
+    const result = await updateUser(user.id, updates);
+    
+    if (result) {
+      setUser({ ...user, ...updates });
+      setSaveMessage('Profile updated!');
+      setIsEditing(false);
+      
+      // Update localStorage if this is the current user
+      const storedUser = localStorage.getItem('mba_user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        if (parsed.id === user.id) {
+          localStorage.setItem('mba_user', JSON.stringify({ ...parsed, ...updates }));
+        }
+      }
+    } else {
+      setSaveMessage('Failed to save profile');
+    }
+    
+    setIsSaving(false);
+  };
+
+  const calculated = stats ? calculateStats(stats) : null;
+
+  if (isLoading) {
     return (
       <div className="mc-card p-8 text-center">
-        <h1 className="text-2xl font-bold text-mc-text mb-2">Player Not Found</h1>
-        <p className="text-mc-text-muted mb-4">The player you're looking for doesn't exist.</p>
-        <Link to="/" className="text-mc-accent hover:underline">
-          Return to Home
-        </Link>
+        <h1 className="text-2xl font-bold text-mc-text mb-2">Loading...</h1>
+        <p className="text-mc-text-muted">Fetching player profile...</p>
       </div>
     );
   }
 
-  const team = user.team_id ? getTeamById(user.team_id) : null;
-  const stats = getPlayerStatsByUserId(user.id);
-  const accolades = getAccoladesByUserId(user.id);
-  const calculated = stats ? calculateStats(stats) : null;
+  if (notFound || !user) {
+    return (
+      <div className="mc-card p-8 text-center">
+        <h1 className="text-2xl font-bold text-mc-text mb-2">Player Not Found</h1>
+        <p className="text-mc-text-muted mb-4">The player you're looking for doesn't exist.</p>
+        <Link to="/stats" className="text-mc-accent hover:underline">
+          View All Players
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
@@ -62,7 +182,7 @@ export default function Profile() {
         {/* Header with team color */}
         <div 
           className="h-20"
-          style={{ backgroundColor: team?.primary_color || '#5D8A32' }}
+          style={{ backgroundColor: team?.primary_color || '#3B82F6' }}
         />
         
         {/* Profile Content */}
@@ -77,13 +197,78 @@ export default function Profile() {
           </div>
 
           {/* Name & IGN */}
-          <div className="mb-4">
-            <h1 className="text-2xl font-bold text-mc-text">{user.minecraft_username}</h1>
-            <p className="text-mc-text-muted">@{user.username}</p>
+          <div className="mb-4 flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-mc-text">{user.minecraft_username}</h1>
+              <p className="text-mc-text-muted">@{user.username}</p>
+            </div>
+            {isOwnProfile && !isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="px-3 py-1.5 bg-mc-surface border border-mc-border text-mc-text hover:bg-mc-surface-light transition-colors text-sm"
+              >
+                Edit Profile
+              </button>
+            )}
           </div>
 
+          {/* Edit Form */}
+          {isEditing && isOwnProfile && (
+            <div className="mb-4 p-4 bg-mc-darker border border-mc-border rounded space-y-4">
+              <div>
+                <label className="block text-mc-text-muted text-sm mb-1">Minecraft Username</label>
+                <input
+                  type="text"
+                  value={editMinecraftUsername}
+                  onChange={(e) => setEditMinecraftUsername(e.target.value)}
+                  className="w-full px-3 py-2 bg-mc-surface border border-mc-border text-mc-text rounded focus:outline-none focus:border-mc-accent"
+                  placeholder="Your Minecraft username"
+                />
+              </div>
+              <div>
+                <label className="block text-mc-text-muted text-sm mb-1">Bio</label>
+                <textarea
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value)}
+                  className="w-full px-3 py-2 bg-mc-surface border border-mc-border text-mc-text rounded focus:outline-none focus:border-mc-accent resize-none"
+                  rows={3}
+                  placeholder="Tell us about yourself..."
+                  maxLength={200}
+                />
+                <div className="text-right text-xs text-mc-text-muted mt-1">
+                  {editBio.length}/200
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-mc-accent text-white font-bold rounded hover:bg-mc-accent-hover transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditBio(user.bio || '');
+                    setEditMinecraftUsername(user.minecraft_username || '');
+                    setSaveMessage('');
+                  }}
+                  className="px-4 py-2 bg-mc-surface border border-mc-border text-mc-text rounded hover:bg-mc-surface-light transition-colors"
+                >
+                  Cancel
+                </button>
+                {saveMessage && (
+                  <span className={`text-sm ${saveMessage.includes('Failed') ? 'text-red-500' : 'text-green-500'}`}>
+                    {saveMessage}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Bio */}
-          {user.bio && (
+          {user.bio && !isEditing && (
             <p className="text-mc-text mb-4">{user.bio}</p>
           )}
 
@@ -115,49 +300,67 @@ export default function Profile() {
       </div>
 
       {/* Stats Card */}
-      {stats && calculated && (
-        <div className="mc-card p-6">
-          <h2 className="text-lg font-bold text-mc-text border-b border-mc-border pb-2 mb-4">Season Stats</h2>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-              <div className="text-2xl font-bold text-mc-accent">{stats.games_played}</div>
-              <div className="text-sm text-mc-text-muted">Games</div>
-            </div>
-            <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-              <div className="text-2xl font-bold text-mc-accent">{calculated.ppg.toFixed(1)}</div>
-              <div className="text-sm text-mc-text-muted">PPG</div>
-            </div>
-            <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-              <div className="text-2xl font-bold text-mc-accent">{calculated.apg.toFixed(1)}</div>
-              <div className="text-sm text-mc-text-muted">APG</div>
-            </div>
-            <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-              <div className="text-2xl font-bold text-mc-accent">{calculated.rpg.toFixed(1)}</div>
-              <div className="text-sm text-mc-text-muted">RPG</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-4 gap-4 mt-4">
-            <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-              <div className="text-xl font-bold text-mc-text">{stats.points_scored}</div>
-              <div className="text-sm text-mc-text-muted">PTS</div>
-            </div>
-            <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-              <div className="text-xl font-bold text-mc-text">{stats.assists}</div>
-              <div className="text-sm text-mc-text-muted">AST</div>
-            </div>
-            <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-              <div className="text-xl font-bold text-mc-text">{stats.steals}</div>
-              <div className="text-sm text-mc-text-muted">STL</div>
-            </div>
-            <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-              <div className="text-xl font-bold text-mc-text">{stats.blocks}</div>
-              <div className="text-sm text-mc-text-muted">BLK</div>
-            </div>
-          </div>
+      <div className="mc-card p-6">
+        <div className="flex items-center justify-between border-b border-mc-border pb-2 mb-4">
+          <h2 className="text-lg font-bold text-mc-text">Season Stats</h2>
+          <select
+            value={selectedSeason}
+            onChange={(e) => setSelectedSeason(e.target.value)}
+            title="Select season"
+            className="px-3 py-1 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
+          >
+            {AVAILABLE_SEASONS.map(season => (
+              <option key={season} value={season}>
+                Season {season.replace('S', '')}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
+        
+        {stats && calculated ? (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                <div className="text-2xl font-bold text-mc-accent">{stats.games_played}</div>
+                <div className="text-sm text-mc-text-muted">Games</div>
+              </div>
+              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                <div className="text-2xl font-bold text-mc-accent">{calculated.ppg.toFixed(1)}</div>
+                <div className="text-sm text-mc-text-muted">PPG</div>
+              </div>
+              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                <div className="text-2xl font-bold text-mc-accent">{calculated.apg.toFixed(1)}</div>
+                <div className="text-sm text-mc-text-muted">APG</div>
+              </div>
+              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                <div className="text-2xl font-bold text-mc-accent">{calculated.rpg.toFixed(1)}</div>
+                <div className="text-sm text-mc-text-muted">RPG</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-4 mt-4">
+              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                <div className="text-xl font-bold text-mc-text">{stats.points_scored}</div>
+                <div className="text-sm text-mc-text-muted">PTS</div>
+              </div>
+              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                <div className="text-xl font-bold text-mc-text">{stats.assists}</div>
+                <div className="text-sm text-mc-text-muted">AST</div>
+              </div>
+              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                <div className="text-xl font-bold text-mc-text">{stats.steals}</div>
+                <div className="text-sm text-mc-text-muted">STL</div>
+              </div>
+              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                <div className="text-xl font-bold text-mc-text">{stats.blocks}</div>
+                <div className="text-sm text-mc-text-muted">BLK</div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="text-mc-text-muted">No stats for this season</p>
+        )}
+      </div>
 
       {/* Accolades Card */}
       {accolades.length > 0 && (

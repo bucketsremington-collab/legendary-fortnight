@@ -1,10 +1,12 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { mockTeams, getTeamMembers, mockPlayerStats, mockGames, getTeamById } from '../data/mockData';
+import { fetchTeamById, fetchTeamMembers, fetchPlayerStatsByUserId, fetchGamesByTeamId } from '../data/dataService';
+import { Team as TeamType, User, PlayerStats, Game } from '../types';
 import { calculateStats } from '../utils/helpers';
 import MinecraftHead from '../components/MinecraftHead';
 
 // Team Logo component with fallback to abbreviation
-function TeamLogo({ team, size = 40 }: { team: typeof mockTeams[0], size?: number }) {
+function TeamLogo({ team, size = 40 }: { team: TeamType, size?: number }) {
   if (team.logo_url) {
     return (
       <img 
@@ -26,10 +28,81 @@ function TeamLogo({ team, size = 40 }: { team: typeof mockTeams[0], size?: numbe
   );
 }
 
-export default function Team() {
+export default function TeamPage() {
   const { teamId } = useParams<{ teamId: string }>();
   
-  const team = mockTeams.find(t => t.id === teamId);
+  const [team, setTeam] = useState<TeamType | null>(null);
+  const [members, setMembers] = useState<User[]>([]);
+  const [memberStats, setMemberStats] = useState<Map<string, PlayerStats>>(new Map());
+  const [games, setGames] = useState<Game[]>([]);
+  const [opponentTeams, setOpponentTeams] = useState<Map<string, TeamType>>(new Map());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      if (!teamId) return;
+      
+      setLoading(true);
+      try {
+        const teamData = await fetchTeamById(teamId);
+        if (!teamData) {
+          setTeam(null);
+          setLoading(false);
+          return;
+        }
+        setTeam(teamData);
+
+        const [membersData, gamesData] = await Promise.all([
+          fetchTeamMembers(teamId),
+          fetchGamesByTeamId(teamId),
+        ]);
+        
+        setMembers(membersData);
+        setGames(gamesData);
+
+        // Fetch stats for all members
+        const statsMap = new Map<string, PlayerStats>();
+        await Promise.all(
+          membersData.map(async (member) => {
+            const stats = await fetchPlayerStatsByUserId(member.id);
+            if (stats) statsMap.set(member.id, stats);
+          })
+        );
+        setMemberStats(statsMap);
+
+        // Fetch opponent teams
+        const opponentsMap = new Map<string, TeamType>();
+        const opponentIds = new Set<string>();
+        gamesData.forEach(g => {
+          if (g.home_team_id !== teamId) opponentIds.add(g.home_team_id);
+          if (g.away_team_id !== teamId) opponentIds.add(g.away_team_id);
+        });
+        
+        await Promise.all(
+          Array.from(opponentIds).map(async (oppId) => {
+            const oppTeam = await fetchTeamById(oppId);
+            if (oppTeam) opponentsMap.set(oppId, oppTeam);
+          })
+        );
+        setOpponentTeams(opponentsMap);
+      } catch (err) {
+        console.error('Error loading team:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, [teamId]);
+
+  const getTeamByIdLocal = (id: string) => opponentTeams.get(id) || team;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-mc-text-muted">Loading team...</div>
+      </div>
+    );
+  }
   
   if (!team) {
     return (
@@ -43,8 +116,7 @@ export default function Team() {
     );
   }
 
-  const members = getTeamMembers(team.id);
-  const teamGames = mockGames.filter(g => g.home_team_id === team.id || g.away_team_id === team.id);
+  const teamGames = games;
   const recentGames = teamGames.filter(g => g.status === 'completed').slice(0, 3);
 
   return (
@@ -92,7 +164,7 @@ export default function Team() {
         
         <div className="space-y-2">
           {members.map(member => {
-            const stats = mockPlayerStats.find(s => s.user_id === member.id);
+            const stats = memberStats.get(member.id);
             const calculated = stats ? calculateStats(stats) : null;
             
             return (
@@ -138,7 +210,7 @@ export default function Team() {
           <div className="space-y-3">
             {recentGames.map(game => {
               const isHome = game.home_team_id === team.id;
-              const opponent = getTeamById(isHome ? game.away_team_id : game.home_team_id);
+              const opponent = getTeamByIdLocal(isHome ? game.away_team_id : game.home_team_id);
               const teamScore = isHome ? game.home_score : game.away_score;
               const oppScore = isHome ? game.away_score : game.home_score;
               const won = (teamScore || 0) > (oppScore || 0);

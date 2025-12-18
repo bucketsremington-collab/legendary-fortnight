@@ -2,8 +2,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Search, Menu, X, Sun, Moon } from 'lucide-react';
-import { useState } from 'react';
-import { mockUsers } from '../data/mockData';
+import { useState, useEffect } from 'react';
+import { fetchUsers } from '../data/dataService';
+import { User } from '../types';
 import MinecraftHead from './MinecraftHead';
 
 export default function Navbar() {
@@ -12,11 +13,16 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+
+  useEffect(() => {
+    fetchUsers().then(setAllUsers);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      const foundUser = mockUsers.find(
+      const foundUser = allUsers.find(
         u => u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
              u.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
              u.minecraft_username.toLowerCase().includes(searchQuery.toLowerCase())

@@ -9,8 +9,8 @@ export const mockTeams: Team[] = [
     logo_url: '/teams/washington-withers.png',
     primary_color: '#1C2541',
     secondary_color: '#C41E3A',
-    description: 'The fearsome Washington Withers bring destruction to their opponents.',
-    founded_date: '2024-01-01',
+    description: 'The fearsome Washington Withers bring destruction to their opponents. Est. Season 0.',
+    founded_date: 'Season 0',
     home_arena: 'Nether Dome',
     wins: 12,
     losses: 4,
@@ -24,8 +24,8 @@ export const mockTeams: Team[] = [
     logo_url: '/teams/miami-magma-cubes.png',
     primary_color: '#C41E3A',
     secondary_color: '#FF6B35',
-    description: 'The heat is on with the Miami Magma Cubes.',
-    founded_date: '2024-01-01',
+    description: 'The heat is on with the Miami Magma Cubes. Est. Season 0.',
+    founded_date: 'Season 0',
     home_arena: 'Lava Court',
     wins: 10,
     losses: 6,
@@ -39,8 +39,8 @@ export const mockTeams: Team[] = [
     logo_url: '/teams/los-angeles-creepers.png',
     primary_color: '#6B21A8',
     secondary_color: '#EAB308',
-    description: 'Explosive plays from the Los Angeles Creepers.',
-    founded_date: '2024-01-01',
+    description: 'Explosive plays from the Los Angeles Creepers. Est. Season 0.',
+    founded_date: 'Season 0',
     home_arena: 'TNT Arena',
     wins: 14,
     losses: 2,
@@ -54,8 +54,8 @@ export const mockTeams: Team[] = [
     logo_url: '/teams/chicago-bows.png',
     primary_color: '#DC2626',
     secondary_color: '#FFFFFF',
-    description: 'Precision shooting from the Chicago Bows.',
-    founded_date: '2024-01-01',
+    description: 'Precision shooting from the Chicago Bows. Est. Season 0.',
+    founded_date: 'Season 0',
     home_arena: 'Arrow Stadium',
     wins: 8,
     losses: 8,
@@ -69,8 +69,8 @@ export const mockTeams: Team[] = [
     logo_url: '/teams/brooklyn-buckets.png',
     primary_color: '#1F2937',
     secondary_color: '#9CA3AF',
-    description: 'Nothing but buckets from Brooklyn.',
-    founded_date: '2024-01-01',
+    description: 'Nothing but buckets from Brooklyn. Est. Season 0.',
+    founded_date: 'Season 0',
     home_arena: 'Bucket Center',
     wins: 9,
     losses: 7,
@@ -84,8 +84,8 @@ export const mockTeams: Team[] = [
     logo_url: '/teams/boston-breeze.png',
     primary_color: '#166534',
     secondary_color: '#22C55E',
-    description: 'The refreshing Boston Breeze sweeps opponents away.',
-    founded_date: '2024-01-01',
+    description: 'The refreshing Boston Breeze sweeps opponents away. Est. Season 0.',
+    founded_date: 'Season 0',
     home_arena: 'Wind Garden',
     wins: 11,
     losses: 5,
@@ -99,8 +99,8 @@ export const mockTeams: Team[] = [
     logo_url: '/teams/philadelphia-64s.png',
     primary_color: '#1E40AF',
     secondary_color: '#DC2626',
-    description: 'Stacking up wins, 64 at a time.',
-    founded_date: '2024-01-01',
+    description: 'Stacking up wins, 64 at a time. Est. Season 0.',
+    founded_date: 'Season 0',
     home_arena: 'Stack Arena',
     wins: 7,
     losses: 9,
@@ -114,8 +114,8 @@ export const mockTeams: Team[] = [
     logo_url: '/teams/atlanta-allays.png',
     primary_color: '#DC2626',
     secondary_color: '#EAB308',
-    description: 'The helpful Atlanta Allays always deliver.',
-    founded_date: '2024-01-01',
+    description: 'The helpful Atlanta Allays always deliver. Est. Season 0.',
+    founded_date: 'Season 0',
     home_arena: 'Allay Arena',
     wins: 6,
     losses: 10,
@@ -124,111 +124,58 @@ export const mockTeams: Team[] = [
   },
 ];
 
-// Mock Users - Test players across teams
+// Mock Users - Test player only
 export const mockUsers: User[] = [
   {
-    id: 'user-1',
-    username: 'TestPlayer',
-    display_name: 'Test Player',
+    id: 'user-test',
+    username: 'test',
+    display_name: 'Test',
     avatar_url: null,
-    bio: 'League MVP candidate.',
+    bio: 'Test player for MBA',
     team_id: 'team-creepers',
     role: 'player',
-    minecraft_username: 'Steve',
+    minecraft_username: 'Test',
     created_at: '2024-01-01T00:00:00Z',
-    updated_at: '2024-12-01T00:00:00Z',
-  },
-  {
-    id: 'user-2',
-    username: 'Player2',
-    display_name: 'Player Two',
-    avatar_url: null,
-    bio: 'Defensive specialist.',
-    team_id: 'team-withers',
-    role: 'player',
-    minecraft_username: 'Alex',
-    created_at: '2024-01-15T00:00:00Z',
     updated_at: '2024-12-01T00:00:00Z',
   },
 ];
 
-// Mock Player Stats - Single test stats
+// Mock Player Stats - S0 stats for Test player
 export const mockPlayerStats: PlayerStats[] = [
   {
-    id: 'stats-1',
-    user_id: 'user-1',
-    season: 'S1',
-    games_played: 15,
-    games_won: 10,
-    games_lost: 5,
-    points_scored: 300,
-    assists: 75,
-    rebounds: 120,
-    steals: 30,
-    blocks: 45,
-    three_pointers_made: 20,
-    three_pointers_attempted: 50,
-    field_goals_made: 120,
-    field_goals_attempted: 240,
-    free_throws_made: 40,
-    free_throws_attempted: 50,
-    turnovers: 25,
-    fouls: 30,
-    minutes_played: 450,
+    id: 'stats-test',
+    user_id: 'user-test',
+    season: 'S0',
+    games_played: 0,
+    games_won: 0,
+    games_lost: 0,
+    points_scored: 0,
+    assists: 0,
+    rebounds: 0,
+    steals: 0,
+    blocks: 0,
+    three_pointers_made: 0,
+    three_pointers_attempted: 0,
+    field_goals_made: 0,
+    field_goals_attempted: 0,
+    free_throws_made: 0,
+    free_throws_attempted: 0,
+    turnovers: 0,
+    fouls: 0,
+    minutes_played: 0,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-12-13T00:00:00Z',
   },
 ];
 
-// Mock Accolades - Single test accolade
-export const mockAccolades: Accolade[] = [
-  {
-    id: 'acc-1',
-    user_id: 'user-1',
-    type: 'championship',
-    title: 'MBA Champion',
-    description: 'Won the Season 1 MBA Championship',
-    season: 'S1',
-    awarded_date: '2024-06-15',
-    icon: '🏆',
-    rarity: 'legendary',
-  },
-];
+// Mock Accolades - Empty for now
+export const mockAccolades: Accolade[] = [];
 
 // Mock Posts (unused but kept for compatibility)
 export const mockPosts: Post[] = [];
 
-// Mock Games - Sample games
-export const mockGames: Game[] = [
-  {
-    id: 'game-1',
-    home_team_id: 'team-creepers',
-    away_team_id: 'team-withers',
-    home_score: 78,
-    away_score: 72,
-    status: 'completed',
-    scheduled_date: '2024-12-10T19:00:00Z',
-    season: 'S1',
-    is_playoff: false,
-    arena: 'TNT Arena',
-    mvp_player_id: 'user-1',
-    created_at: '2024-12-01T00:00:00Z',
-  },
-  {
-    id: 'game-2',
-    home_team_id: 'team-magma',
-    away_team_id: 'team-breeze',
-    home_score: 0,
-    away_score: 0,
-    status: 'scheduled',
-    scheduled_date: '2024-12-20T19:00:00Z',
-    season: 'S1',
-    is_playoff: false,
-    arena: 'Lava Court',
-    mvp_player_id: null,
-    created_at: '2024-12-01T00:00:00Z',
-  },
-];
+// Mock Games - Empty for S0 pre-season
+export const mockGames: Game[] = [];
 
 // Helper functions to get related data
 export const getUserById = (id: string): User | undefined => mockUsers.find(u => u.id === id);
@@ -294,3 +241,5 @@ export const mockFreeAgentListings: FreeAgentListing[] = [
     created_at: '2024-12-05T10:00:00Z',
   },
 ];
+
+

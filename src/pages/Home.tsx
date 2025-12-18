@@ -1,6 +1,27 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { mockNews, mockGames, mockFreeAgentListings, mockUsers, getTeamById, getUserById, NewsItem } from '../data/mockData';
+import { NewsItem } from '../data/mockData';
+import { 
+  fetchNews, 
+  fetchGames, 
+  fetchFreeAgentListings, 
+  fetchUsers, 
+  fetchTeams,
+  fetchUserById 
+} from '../data/dataService';
+import { Team, User, Game } from '../types';
 import MinecraftHead from '../components/MinecraftHead';
+
+// Types for free agent listing
+interface FreeAgentListing {
+  id: string;
+  user_id: string;
+  positions: string[];
+  description: string;
+  availability: 'available' | 'in-talks' | 'signed';
+  discord_tag: string;
+  created_at: string;
+}
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
@@ -38,11 +59,62 @@ function getCategoryLabel(category: NewsItem['category']): string {
 }
 
 export default function Home() {
-  const upcomingGames = mockGames.filter(g => g.status === 'scheduled').slice(0, 3);
-  const pinnedNews = mockNews.filter(n => n.is_pinned);
-  const regularNews = mockNews.filter(n => !n.is_pinned);
-  const recentFreeAgents = mockFreeAgentListings.filter(fa => fa.availability === 'available').slice(0, 3);
-  const topPlayers = mockUsers.filter(u => u.role === 'player').slice(0, 5);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [games, setGames] = useState<Game[]>([]);
+  const [freeAgentListings, setFreeAgentListings] = useState<FreeAgentListing[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [freeAgentUsers, setFreeAgentUsers] = useState<Map<string, User>>(new Map());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      try {
+        const [newsData, gamesData, freeAgentsData, usersData, teamsData] = await Promise.all([
+          fetchNews(),
+          fetchGames(),
+          fetchFreeAgentListings(),
+          fetchUsers(),
+          fetchTeams(),
+        ]);
+        setNews(newsData);
+        setGames(gamesData);
+        setFreeAgentListings(freeAgentsData);
+        setUsers(usersData);
+        setTeams(teamsData);
+
+        // Pre-fetch users for free agent listings
+        const faUsers = new Map<string, User>();
+        for (const listing of freeAgentsData) {
+          const user = await fetchUserById(listing.user_id);
+          if (user) faUsers.set(listing.user_id, user);
+        }
+        setFreeAgentUsers(faUsers);
+      } catch (err) {
+        console.error('Error loading home data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const getTeamById = (id: string) => teams.find(t => t.id === id);
+  
+  const upcomingGames = games.filter(g => g.status === 'scheduled').slice(0, 3);
+  const pinnedNews = news.filter(n => n.is_pinned);
+  const regularNews = news.filter(n => !n.is_pinned);
+  const recentFreeAgents = freeAgentListings.filter(fa => fa.availability === 'available').slice(0, 3);
+  const topPlayers = users.filter(u => u.role === 'player').slice(0, 5);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-mc-text-muted">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -147,7 +219,7 @@ export default function Home() {
             {recentFreeAgents.length > 0 ? (
               <div className="space-y-2">
                 {recentFreeAgents.map(listing => {
-                  const user = getUserById(listing.user_id);
+                  const user = freeAgentUsers.get(listing.user_id);
                   if (!user) return null;
                   
                   return (

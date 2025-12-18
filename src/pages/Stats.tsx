@@ -1,20 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { mockUsers, mockPlayerStats, getTeamById } from '../data/mockData';
+import { fetchUsers, fetchPlayerStats, fetchTeams, checkSupabaseConnection } from '../data/dataService';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { calculateStats } from '../utils/helpers';
 import MinecraftHead from '../components/MinecraftHead';
+import { User, PlayerStats, Team } from '../types';
 
 type SortKey = 'ppg' | 'rpg' | 'apg' | 'spg' | 'bpg';
 
+// Available seasons (add more as needed)
+const AVAILABLE_SEASONS = ['S0'];
+
 export default function Stats() {
   const [sortBy, setSortBy] = useState<SortKey>('ppg');
+  const [selectedSeason, setSelectedSeason] = useState<string>('S0');
+  const [users, setUsers] = useState<User[]>([]);
+  const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDbConnected, setIsDbConnected] = useState(false);
+
+  // Load data on mount and when season changes
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      
+      // Check connection
+      if (isSupabaseConfigured()) {
+        const connected = await checkSupabaseConnection();
+        setIsDbConnected(connected);
+      }
+      
+      // Fetch data (will use DB if connected, otherwise mock data)
+      const [loadedUsers, loadedStats, loadedTeams] = await Promise.all([
+        fetchUsers(),
+        fetchPlayerStats(selectedSeason),
+        fetchTeams()
+      ]);
+      
+      setUsers(loadedUsers);
+      setPlayerStats(loadedStats);
+      setTeams(loadedTeams);
+      setIsLoading(false);
+    };
+    loadData();
+  }, [selectedSeason]);
+
+  // Helper to get team by ID
+  const getTeam = (teamId: string | null) => {
+    if (!teamId) return null;
+    return teams.find(t => t.id === teamId);
+  };
 
   // Get all players with stats
-  const playersWithStats = mockUsers
+  const playersWithStats = users
     .filter(u => u.role === 'player')
     .map(player => {
-      const stats = mockPlayerStats.find(s => s.user_id === player.id);
-      const team = player.team_id ? getTeamById(player.team_id) : null;
+      const stats = playerStats.find(s => s.user_id === player.id);
+      const team = getTeam(player.team_id);
       return {
         player,
         stats,
@@ -39,11 +82,49 @@ export default function Stats() {
     { key: 'bpg', label: 'Blocks' },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="mc-card p-6">
+          <h1 className="text-2xl font-bold text-mc-text mb-2">Player Statistics</h1>
+          <p className="text-mc-text-muted">Loading stats...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="mc-card p-6">
-        <h1 className="text-2xl font-bold text-mc-text mb-2">Player Statistics</h1>
-        <p className="text-mc-text-muted">Season statistical leaders and rankings</p>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-mc-text mb-2">Player Statistics</h1>
+            <p className="text-mc-text-muted">
+              Season statistical leaders and rankings 
+              <span className="text-xs ml-2">
+                ({playerStats.length} stat records, {users.filter(u => u.role === 'player').length} players)
+              </span>
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Season Dropdown */}
+            <select
+              value={selectedSeason}
+              onChange={(e) => setSelectedSeason(e.target.value)}
+              title="Select season"
+              className="px-3 py-2 bg-mc-surface border border-mc-border rounded text-mc-text focus:outline-none focus:border-mc-accent"
+            >
+              {AVAILABLE_SEASONS.map(season => (
+                <option key={season} value={season}>
+                  Season {season.replace('S', '')}
+                </option>
+              ))}
+            </select>
+            <div className={`px-2 py-1 rounded text-xs font-bold ${isDbConnected ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'}`}>
+              {isDbConnected ? 'Live Data' : 'Demo Data'}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Sort Options */}

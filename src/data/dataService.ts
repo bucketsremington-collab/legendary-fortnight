@@ -168,24 +168,75 @@ export async function createUser(user: Omit<User, 'created_at' | 'updated_at'>):
   return data;
 }
 
+export async function updateUser(id: string, updates: Partial<User>): Promise<User | null> {
+  if (!isSupabaseConfigured()) {
+    console.log('Demo mode: User update not saved to database');
+    return null;
+  }
+
+  const { data, error } = await supabase!
+    .from('users')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating user:', error);
+    return null;
+  }
+
+  return data;
+}
+
 // ============================================
 // PLAYER STATS
 // ============================================
-export async function fetchPlayerStats(): Promise<PlayerStats[]> {
+export async function fetchPlayerStats(season?: string): Promise<PlayerStats[]> {
   if (!isSupabaseConfigured()) {
     return mockPlayerStats;
   }
 
+  // If season specified, filter by it
+  if (season) {
+    const { data, error } = await supabase!
+      .from('player_stats')
+      .select('*')
+      .eq('season', season);
+
+    if (error) {
+      console.error('Error fetching player stats:', error);
+      return mockPlayerStats;
+    }
+
+    return data || mockPlayerStats;
+  }
+
+  // Otherwise get all stats but deduplicate by user (keep most recent season)
   const { data, error } = await supabase!
     .from('player_stats')
-    .select('*');
+    .select('*')
+    .order('season', { ascending: false });
 
   if (error) {
     console.error('Error fetching player stats:', error);
     return mockPlayerStats;
   }
 
-  return data || mockPlayerStats;
+  // Deduplicate: keep only the first (most recent) stat per user
+  const seenUsers = new Set<string>();
+  const deduped = (data || []).filter(stat => {
+    if (seenUsers.has(stat.user_id)) {
+      return false;
+    }
+    seenUsers.add(stat.user_id);
+    return true;
+  });
+
+  return deduped.length > 0 ? deduped : mockPlayerStats;
 }
 
 export async function fetchPlayerStatsByUserId(userId: string): Promise<PlayerStats | null> {

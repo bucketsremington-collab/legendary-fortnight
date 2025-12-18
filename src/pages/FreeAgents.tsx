@@ -1,9 +1,71 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { mockFreeAgentListings, getUserById, getPlayerStatsByUserId } from '../data/mockData';
+import { fetchFreeAgentListings, fetchUserById, fetchPlayerStatsByUserId } from '../data/dataService';
+import { User, PlayerStats } from '../types';
 import { calculateStats } from '../utils/helpers';
 import MinecraftHead from '../components/MinecraftHead';
 
+// Types for free agent listing
+interface FreeAgentListing {
+  id: string;
+  user_id: string;
+  positions: string[];
+  description: string;
+  availability: 'available' | 'in-talks' | 'signed';
+  discord_tag: string;
+  created_at: string;
+}
+
 export default function FreeAgents() {
+  const [listings, setListings] = useState<FreeAgentListing[]>([]);
+  const [users, setUsers] = useState<Map<string, User>>(new Map());
+  const [stats, setStats] = useState<Map<string, PlayerStats>>(new Map());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      try {
+        const listingsData = await fetchFreeAgentListings();
+        setListings(listingsData);
+
+        // Fetch users and stats for all listings
+        const usersMap = new Map<string, User>();
+        const statsMap = new Map<string, PlayerStats>();
+        
+        await Promise.all(
+          listingsData.map(async (listing) => {
+            const user = await fetchUserById(listing.user_id);
+            if (user) {
+              usersMap.set(listing.user_id, user);
+              const playerStats = await fetchPlayerStatsByUserId(user.id);
+              if (playerStats) statsMap.set(user.id, playerStats);
+            }
+          })
+        );
+        
+        setUsers(usersMap);
+        setStats(statsMap);
+      } catch (err) {
+        console.error('Error loading free agents:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const getUserById = (id: string) => users.get(id);
+  const getPlayerStatsByUserId = (id: string) => stats.get(id);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-mc-text-muted">Loading free agents...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="mc-card p-6">
@@ -12,7 +74,7 @@ export default function FreeAgents() {
       </div>
 
       {/* List yourself banner */}
-      <div className="mc-card p-4 bg-mc-accent border-mc-accent">
+      <div className="p-4 bg-[#5865F2] rounded">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h3 className="font-bold text-white">Looking for a team?</h3>
@@ -20,7 +82,7 @@ export default function FreeAgents() {
           </div>
           <button
             onClick={() => window.alert('Discord OAuth would open here')}
-            className="px-4 py-2 bg-white text-mc-accent font-bold hover:bg-gray-100 transition-colors rounded"
+            className="px-4 py-2 bg-white text-[#5865F2] font-bold hover:bg-gray-100 transition-colors rounded"
           >
             Connect Discord
           </button>
@@ -29,10 +91,10 @@ export default function FreeAgents() {
 
       {/* Free Agent Listings */}
       <div className="space-y-3">
-        {mockFreeAgentListings.map(listing => {
+        {listings.map(listing => {
           const user = getUserById(listing.user_id);
-          const stats = user ? getPlayerStatsByUserId(user.id) : null;
-          const calculated = stats ? calculateStats(stats) : null;
+          const playerStats = user ? getPlayerStatsByUserId(user.id) : null;
+          const calculated = playerStats ? calculateStats(playerStats) : null;
 
           if (!user) return null;
 
@@ -102,7 +164,7 @@ export default function FreeAgents() {
         })}
       </div>
 
-      {mockFreeAgentListings.length === 0 && (
+      {listings.length === 0 && (
         <div className="mc-card p-8 text-center text-mc-text-muted">
           No free agents listed right now.
         </div>

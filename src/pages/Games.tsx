@@ -1,8 +1,13 @@
-import { mockGames, mockTeams, getTeamById } from '../data/mockData';
+import { useState, useEffect } from 'react';
+import { fetchGames, fetchTeams } from '../data/dataService';
+import { Team, Game } from '../types';
 import { Link } from 'react-router-dom';
 
+// Available seasons (add more as needed)
+const AVAILABLE_SEASONS = ['S0'];
+
 // Team Logo component with fallback to abbreviation
-function TeamLogo({ team, size = 40 }: { team: typeof mockTeams[0], size?: number }) {
+function TeamLogo({ team, size = 40 }: { team: Team, size?: number }) {
   if (team.logo_url) {
     return (
       <img 
@@ -25,7 +30,7 @@ function TeamLogo({ team, size = 40 }: { team: typeof mockTeams[0], size?: numbe
 }
 
 // Helper component for team display
-function TeamBadge({ team, showName = true }: { team: ReturnType<typeof getTeamById>, showName?: boolean }) {
+function TeamBadge({ team, showName = true }: { team: Team | undefined, showName?: boolean }) {
   if (!team) return null;
   
   return (
@@ -37,14 +42,66 @@ function TeamBadge({ team, showName = true }: { team: ReturnType<typeof getTeamB
 }
 
 export default function Games() {
-  const upcomingGames = mockGames.filter(g => g.status === 'scheduled');
-  const completedGames = mockGames.filter(g => g.status === 'completed');
+  const [games, setGames] = useState<Game[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedSeason, setSelectedSeason] = useState<string>('S0');
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      try {
+        const [gamesData, teamsData] = await Promise.all([
+          fetchGames(),
+          fetchTeams(),
+        ]);
+        setGames(gamesData);
+        setTeams(teamsData);
+      } catch (err) {
+        console.error('Error loading games:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const getTeamById = (id: string) => teams.find(t => t.id === id);
+
+  // Filter games by selected season
+  const seasonGames = games.filter(g => g.season === selectedSeason);
+  const upcomingGames = seasonGames.filter(g => g.status === 'scheduled');
+  const completedGames = seasonGames.filter(g => g.status === 'completed');
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-mc-text-muted">Loading games...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="mc-card p-6">
-        <h1 className="text-2xl font-bold text-mc-text mb-2">Games</h1>
-        <p className="text-mc-text-muted">MBA game schedule and results</p>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-mc-text mb-2">Games</h1>
+            <p className="text-mc-text-muted">MBA game schedule and results</p>
+          </div>
+          <select
+            value={selectedSeason}
+            onChange={(e) => setSelectedSeason(e.target.value)}
+            title="Select season"
+            className="px-3 py-2 bg-mc-surface border border-mc-border rounded text-mc-text focus:outline-none focus:border-mc-accent"
+          >
+            {AVAILABLE_SEASONS.map(season => (
+              <option key={season} value={season}>
+                Season {season.replace('S', '')}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Upcoming Games */}

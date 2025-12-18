@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { mockUsers, mockTeams, mockPlayerStats } from '../data/mockData';
-import { upsertPlayerStats, fetchPlayerStatsByUserIdAndSeason, checkSupabaseConnection } from '../data/dataService';
+import { upsertPlayerStats, fetchPlayerStatsByUserIdAndSeason, checkSupabaseConnection, fetchUsers, fetchTeams, fetchPlayerStats, updateUser } from '../data/dataService';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { calculateStats } from '../utils/helpers';
 import MinecraftHead from '../components/MinecraftHead';
+import { User, Team, PlayerStats } from '../types';
 
 interface PlayerStatInput {
   user_id: string;
@@ -49,23 +49,39 @@ const defaultStats: Omit<PlayerStatInput, 'user_id' | 'season'> = {
 
 export default function StatsAdmin() {
   const [selectedPlayer, setSelectedPlayer] = useState<string>('');
-  const [season, setSeason] = useState<string>('S1');
-  const [stats, setStats] = useState<PlayerStatInput>({ ...defaultStats, user_id: '', season: 'S1' });
+  const [season, setSeason] = useState<string>('S0');
+  const [stats, setStats] = useState<PlayerStatInput>({ ...defaultStats, user_id: '', season: 'S0' });
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
+  const [isChangingTeam, setIsChangingTeam] = useState<boolean>(false);
+  const [teamChangeMessage, setTeamChangeMessage] = useState<string>('');
   const [calculatedStats, setCalculatedStats] = useState<ReturnType<typeof calculateStats> | null>(null);
   const [savedStats, setSavedStats] = useState<PlayerStatInput[]>([]);
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveMessage, setSaveMessage] = useState<string>('');
+  const [users, setUsers] = useState<User[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [allPlayerStats, setAllPlayerStats] = useState<PlayerStats[]>([]);
 
-  // Check Supabase connection on mount
+  // Check Supabase connection and load users on mount
   useEffect(() => {
-    const checkConnection = async () => {
+    const initialize = async () => {
       if (isSupabaseConfigured()) {
         const connected = await checkSupabaseConnection();
         setIsSupabaseConnected(connected);
       }
+      
+      // Fetch users, teams, and player stats from database
+      const [loadedUsers, loadedTeams, loadedStats] = await Promise.all([
+        fetchUsers(),
+        fetchTeams(),
+        fetchPlayerStats()
+      ]);
+      setUsers(loadedUsers);
+      setTeams(loadedTeams);
+      setAllPlayerStats(loadedStats);
     };
-    checkConnection();
+    initialize();
   }, []);
 
   // Load saved stats from localStorage
@@ -134,32 +150,32 @@ export default function StatsAdmin() {
           }
         }
 
-        // Check mockData for existing stats
-        const mockStat = mockPlayerStats.find(
+        // Check database stats
+        const dbStat = allPlayerStats.find(
           s => s.user_id === selectedPlayer && s.season === season
         );
         
-        if (mockStat) {
+        if (dbStat) {
           setStats({
-            user_id: mockStat.user_id,
-            season: mockStat.season,
-            games_played: mockStat.games_played,
-            games_won: mockStat.games_won,
-            games_lost: mockStat.games_lost,
-            points_scored: mockStat.points_scored,
-            assists: mockStat.assists,
-            rebounds: mockStat.rebounds,
-            steals: mockStat.steals,
-            blocks: mockStat.blocks,
-            three_pointers_made: mockStat.three_pointers_made,
-            three_pointers_attempted: mockStat.three_pointers_attempted,
-            field_goals_made: mockStat.field_goals_made,
-            field_goals_attempted: mockStat.field_goals_attempted,
-            free_throws_made: mockStat.free_throws_made,
-            free_throws_attempted: mockStat.free_throws_attempted,
-            turnovers: mockStat.turnovers,
-            fouls: mockStat.fouls,
-            minutes_played: mockStat.minutes_played,
+            user_id: dbStat.user_id,
+            season: dbStat.season,
+            games_played: dbStat.games_played,
+            games_won: dbStat.games_won,
+            games_lost: dbStat.games_lost,
+            points_scored: dbStat.points_scored,
+            assists: dbStat.assists,
+            rebounds: dbStat.rebounds,
+            steals: dbStat.steals,
+            blocks: dbStat.blocks,
+            three_pointers_made: dbStat.three_pointers_made,
+            three_pointers_attempted: dbStat.three_pointers_attempted,
+            field_goals_made: dbStat.field_goals_made,
+            field_goals_attempted: dbStat.field_goals_attempted,
+            free_throws_made: dbStat.free_throws_made,
+            free_throws_attempted: dbStat.free_throws_attempted,
+            turnovers: dbStat.turnovers,
+            fouls: dbStat.fouls,
+            minutes_played: dbStat.minutes_played,
           });
         } else {
           setStats({ ...defaultStats, user_id: selectedPlayer, season });
@@ -226,8 +242,8 @@ export default function StatsAdmin() {
     linkElement.click();
   };
 
-  const selectedUser = mockUsers.find(u => u.id === selectedPlayer);
-  const selectedTeam = selectedUser?.team_id ? mockTeams.find(t => t.id === selectedUser.team_id) : null;
+  const selectedUser = users.find(u => u.id === selectedPlayer);
+  const selectedTeam = selectedUser?.team_id ? teams.find(t => t.id === selectedUser.team_id) : null;
 
   return (
     <div className="space-y-6">
@@ -257,7 +273,7 @@ export default function StatsAdmin() {
               className="w-full px-3 py-2 bg-mc-surface border border-mc-border text-mc-text rounded focus:outline-none focus:border-mc-accent"
             >
               <option value="">-- Select Player --</option>
-              {mockUsers.filter(u => u.role === 'player').map(user => (
+              {users.filter(u => u.role === 'player').map(user => (
                 <option key={user.id} value={user.id}>
                   {user.minecraft_username} (@{user.username})
                 </option>
@@ -271,6 +287,7 @@ export default function StatsAdmin() {
               onChange={(e) => setSeason(e.target.value)}
               className="w-full px-3 py-2 bg-mc-surface border border-mc-border text-mc-text rounded focus:outline-none focus:border-mc-accent"
             >
+              <option value="S0">Season 0 (Pre-Season)</option>
               <option value="S1">Season 1</option>
               <option value="S2">Season 2</option>
               <option value="S3">Season 3</option>
@@ -279,17 +296,72 @@ export default function StatsAdmin() {
         </div>
 
         {selectedUser && (
-          <div className="mt-4 p-4 bg-mc-darker rounded border border-mc-border flex items-center gap-4">
-            <MinecraftHead username={selectedUser.minecraft_username} size={48} />
-            <div>
-              <div className="font-bold text-mc-text">{selectedUser.minecraft_username}</div>
-              {selectedTeam && (
-                <div className="text-sm text-mc-text-muted">{selectedTeam.name}</div>
-              )}
+          <div className="mt-4 p-4 bg-mc-darker rounded border border-mc-border flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <MinecraftHead username={selectedUser.minecraft_username} size={48} />
+              <div>
+                <div className="font-bold text-mc-text">{selectedUser.minecraft_username}</div>
+                {selectedTeam && (
+                  <div className="text-sm text-mc-text-muted">{selectedTeam.name}</div>
+                )}
+              </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Team Change Section */}
+      {selectedPlayer && (
+        <div className="mc-card p-6">
+          <h2 className="text-lg font-bold text-mc-text mb-4">Change Team</h2>
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <label className="block text-mc-text-muted mb-2">New Team</label>
+              <select
+                value={selectedTeamId || selectedUser?.team_id || ''}
+                onChange={(e) => setSelectedTeamId(e.target.value)}
+                className="w-full px-3 py-2 bg-mc-surface border border-mc-border text-mc-text rounded focus:outline-none focus:border-mc-accent"
+              >
+                <option value="">-- No Team (Free Agent) --</option>
+                {teams.map(team => (
+                  <option key={team.id} value={team.id}>
+                    {team.name} ({team.abbreviation})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="pt-6">
+              <button
+                onClick={async () => {
+                  if (!selectedPlayer) return;
+                  setIsChangingTeam(true);
+                  setTeamChangeMessage('');
+                  const newTeamId = selectedTeamId || null;
+                  const result = await updateUser(selectedPlayer, { team_id: newTeamId });
+                  if (result) {
+                    // Update local state
+                    setUsers(prev => prev.map(u => u.id === selectedPlayer ? { ...u, team_id: newTeamId } : u));
+                    const team = teams.find(t => t.id === newTeamId);
+                    setTeamChangeMessage(`Player moved to ${team?.name || 'Free Agent'}!`);
+                  } else {
+                    setTeamChangeMessage('Failed to update team');
+                  }
+                  setIsChangingTeam(false);
+                }}
+                disabled={isChangingTeam}
+                className="px-4 py-2 bg-mc-accent text-white font-bold rounded hover:bg-mc-accent-hover transition-colors disabled:opacity-50"
+              >
+                {isChangingTeam ? 'Updating...' : 'Update Team'}
+              </button>
+            </div>
+          </div>
+          {teamChangeMessage && (
+            <div className={`mt-2 text-sm ${teamChangeMessage.includes('Failed') ? 'text-red-500' : 'text-green-500'}`}>
+              {teamChangeMessage}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats Input */}
       {selectedPlayer && (
@@ -567,7 +639,7 @@ export default function StatsAdmin() {
           <h2 className="text-lg font-bold text-mc-text mb-4">Saved Stats ({savedStats.length})</h2>
           <div className="space-y-2">
             {savedStats.map((s, i) => {
-              const user = mockUsers.find(u => u.id === s.user_id);
+              const user = users.find(u => u.id === s.user_id);
               return (
                 <div key={i} className="flex items-center justify-between p-3 bg-mc-darker rounded">
                   <div className="flex items-center gap-3">
