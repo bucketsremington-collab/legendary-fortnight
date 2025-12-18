@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { mockUsers, mockTeams, mockPlayerStats } from '../data/mockData';
+import { upsertPlayerStats, fetchPlayerStatsByUserIdAndSeason, checkSupabaseConnection } from '../data/dataService';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { calculateStats } from '../utils/helpers';
 import MinecraftHead from '../components/MinecraftHead';
 
@@ -51,6 +53,20 @@ export default function StatsAdmin() {
   const [stats, setStats] = useState<PlayerStatInput>({ ...defaultStats, user_id: '', season: 'S1' });
   const [calculatedStats, setCalculatedStats] = useState<ReturnType<typeof calculateStats> | null>(null);
   const [savedStats, setSavedStats] = useState<PlayerStatInput[]>([]);
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveMessage, setSaveMessage] = useState<string>('');
+
+  // Check Supabase connection on mount
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (isSupabaseConfigured()) {
+        const connected = await checkSupabaseConnection();
+        setIsSupabaseConnected(connected);
+      }
+    };
+    checkConnection();
+  }, []);
 
   // Load saved stats from localStorage
   useEffect(() => {
@@ -77,15 +93,47 @@ export default function StatsAdmin() {
 
   // Update stats when player selection changes
   useEffect(() => {
-    if (selectedPlayer) {
-      // Check if we have saved stats for this player/season
-      const existingStats = savedStats.find(
-        s => s.user_id === selectedPlayer && s.season === season
-      );
-      
-      if (existingStats) {
-        setStats(existingStats);
-      } else {
+    const loadStats = async () => {
+      if (selectedPlayer) {
+        // First check if we have saved stats in localStorage for this player/season
+        const existingStats = savedStats.find(
+          s => s.user_id === selectedPlayer && s.season === season
+        );
+        
+        if (existingStats) {
+          setStats(existingStats);
+          return;
+        }
+
+        // If Supabase is connected, try to fetch from there
+        if (isSupabaseConnected) {
+          const dbStats = await fetchPlayerStatsByUserIdAndSeason(selectedPlayer, season);
+          if (dbStats) {
+            setStats({
+              user_id: dbStats.user_id,
+              season: dbStats.season,
+              games_played: dbStats.games_played,
+              games_won: dbStats.games_won,
+              games_lost: dbStats.games_lost,
+              points_scored: dbStats.points_scored,
+              assists: dbStats.assists,
+              rebounds: dbStats.rebounds,
+              steals: dbStats.steals,
+              blocks: dbStats.blocks,
+              three_pointers_made: dbStats.three_pointers_made,
+              three_pointers_attempted: dbStats.three_pointers_attempted,
+              field_goals_made: dbStats.field_goals_made,
+              field_goals_attempted: dbStats.field_goals_attempted,
+              free_throws_made: dbStats.free_throws_made,
+              free_throws_attempted: dbStats.free_throws_attempted,
+              turnovers: dbStats.turnovers,
+              fouls: dbStats.fouls,
+              minutes_played: dbStats.minutes_played,
+            });
+            return;
+          }
+        }
+
         // Check mockData for existing stats
         const mockStat = mockPlayerStats.find(
           s => s.user_id === selectedPlayer && s.season === season
@@ -117,20 +165,26 @@ export default function StatsAdmin() {
           setStats({ ...defaultStats, user_id: selectedPlayer, season });
         }
       }
-    }
-  }, [selectedPlayer, season, savedStats]);
+    };
+    loadStats();
+  }, [selectedPlayer, season, savedStats, isSupabaseConnected]);
 
   const handleInputChange = (field: keyof PlayerStatInput, value: number) => {
     setStats(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedPlayer) {
       alert('Please select a player first');
       return;
     }
 
+    setIsSaving(true);
+    setSaveMessage('');
+
     const newStats = { ...stats, user_id: selectedPlayer, season };
+
+    // Save to localStorage first (always works)
     const existingIndex = savedStats.findIndex(
       s => s.user_id === selectedPlayer && s.season === season
     );
@@ -145,7 +199,20 @@ export default function StatsAdmin() {
 
     setSavedStats(updated);
     localStorage.setItem('mba-stats', JSON.stringify(updated));
-    alert('Stats saved successfully!');
+
+    // If Supabase is connected, also save there
+    if (isSupabaseConnected) {
+      const result = await upsertPlayerStats(newStats);
+      if (result) {
+        setSaveMessage('Stats saved to database and locally!');
+      } else {
+        setSaveMessage('Stats saved locally (database save failed)');
+      }
+    } else {
+      setSaveMessage('Stats saved locally (database not connected)');
+    }
+
+    setIsSaving(false);
   };
 
   const handleExport = () => {
@@ -165,10 +232,17 @@ export default function StatsAdmin() {
   return (
     <div className="space-y-6">
       <div className="mc-card p-6">
-        <h1 className="text-2xl font-bold text-mc-text mb-2">Stats Admin</h1>
-        <p className="text-mc-text-muted">
-          Temporarily manage player statistics. Data is saved to local storage.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-mc-text mb-2">Stats Admin</h1>
+            <p className="text-mc-text-muted">
+              Manage player statistics. {isSupabaseConnected ? 'Data saves to Supabase database.' : 'Data saves to local storage.'}
+            </p>
+          </div>
+          <div className={`px-3 py-1 rounded text-sm font-bold ${isSupabaseConnected ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'}`}>
+            {isSupabaseConnected ? '● Database Connected' : '○ Local Storage Mode'}
+          </div>
+        </div>
       </div>
 
       {/* Player Selection */}
@@ -414,19 +488,27 @@ export default function StatsAdmin() {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-4">
-            <button
-              onClick={handleSave}
-              className="px-6 py-2 bg-mc-accent text-white font-bold rounded hover:bg-mc-accent-hover transition-colors"
-            >
-              Save Stats
-            </button>
-            <button
-              onClick={handleExport}
-              className="px-6 py-2 bg-mc-surface border border-mc-border text-mc-text font-bold rounded hover:bg-mc-surface-light transition-colors"
-            >
-              Export All Stats
-            </button>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-4">
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-6 py-2 bg-mc-accent text-white font-bold rounded hover:bg-mc-accent-hover transition-colors disabled:opacity-50"
+              >
+                {isSaving ? 'Saving...' : 'Save Stats'}
+              </button>
+              <button
+                onClick={handleExport}
+                className="px-6 py-2 bg-mc-surface border border-mc-border text-mc-text font-bold rounded hover:bg-mc-surface-light transition-colors"
+              >
+                Export All Stats
+              </button>
+            </div>
+            {saveMessage && (
+              <div className={`text-sm ${saveMessage.includes('database') && saveMessage.includes('locally!') ? 'text-green-500' : 'text-yellow-500'}`}>
+                {saveMessage}
+              </div>
+            )}
           </div>
         </div>
       )}
