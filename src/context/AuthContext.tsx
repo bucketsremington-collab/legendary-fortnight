@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
-import { fetchUsers, createUser, updateUser } from '../data/dataService';
+import { fetchUsers, createUser, updateUser, fetchTeamById } from '../data/dataService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -52,15 +52,16 @@ export const MBA_ROLE_IDS = {
 } as const;
 
 // Map team role IDs to team IDs in the database
+// Team IDs must match the actual teams in the database
 export const TEAM_ROLE_TO_TEAM_ID: Record<string, string> = {
-  [MBA_ROLE_IDS.WIZARDS]: 'team-wizards',
-  [MBA_ROLE_IDS.BOWS]: 'team-bows',
-  [MBA_ROLE_IDS.SIXTY_FOURS]: 'team-64s',
-  [MBA_ROLE_IDS.BUCKETS]: 'team-buckets',
-  [MBA_ROLE_IDS.MAGMA_CUBES]: 'team-magma-cubes',
-  [MBA_ROLE_IDS.CREEPERS]: 'team-creepers',
-  [MBA_ROLE_IDS.ALLAYS]: 'team-allays',
-  [MBA_ROLE_IDS.BREEZE]: 'team-breeze',
+  [MBA_ROLE_IDS.WIZARDS]: 'team-withers',      // Washington Withers (Wizards role)
+  [MBA_ROLE_IDS.BOWS]: 'team-bows',            // Chicago Bows
+  [MBA_ROLE_IDS.SIXTY_FOURS]: 'team-64s',      // Philadelphia 64s
+  [MBA_ROLE_IDS.BUCKETS]: 'team-buckets',      // Brooklyn Buckets
+  [MBA_ROLE_IDS.MAGMA_CUBES]: 'team-magma',    // Miami Magma Cubes
+  [MBA_ROLE_IDS.CREEPERS]: 'team-creepers',    // Los Angeles Creepers
+  [MBA_ROLE_IDS.ALLAYS]: 'team-allays',        // Atlanta Allays
+  [MBA_ROLE_IDS.BREEZE]: 'team-breeze',        // Boston Breeze
 };
 
 // Helper to get user's MBA roles from role IDs
@@ -248,8 +249,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Update team_id based on team role
     if (mbaRoles.teamId && user.team_id !== mbaRoles.teamId) {
-      updates.team_id = mbaRoles.teamId;
-      changes.push(`Team updated`);
+      // Verify the team exists in the database before assigning
+      const teamExists = await fetchTeamById(mbaRoles.teamId);
+      if (teamExists) {
+        updates.team_id = mbaRoles.teamId;
+        changes.push(`Team updated to ${teamExists.name}`);
+      } else {
+        console.warn(`Team ${mbaRoles.teamId} not found in database`);
+        return { success: false, message: `Team not found in database. Contact an admin.` };
+      }
     } else if (!mbaRoles.teamId && mbaRoles.isFreeAgent && user.team_id !== null) {
       updates.team_id = null;
       changes.push(`Set as Free Agent (no team)`);
