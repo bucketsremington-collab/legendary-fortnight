@@ -306,10 +306,11 @@ export default function StatsAdmin() {
               </option>
               {users
                 .filter(u => {
+                  // Show all users on the team (players, coaches, owners, etc.)
                   if (selectedTeamId === 'free-agents') {
-                    return !u.team_id && u.role === 'player';
+                    return !u.team_id;
                   }
-                  return u.team_id === selectedTeamId && u.role === 'player';
+                  return u.team_id === selectedTeamId;
                 })
                 .map(user => (
                   <option key={user.id} value={user.id}>
@@ -318,10 +319,10 @@ export default function StatsAdmin() {
                 ))}
             </select>
             {selectedTeamId && users.filter(u => {
-              if (selectedTeamId === 'free-agents') return !u.team_id && u.role === 'player';
-              return u.team_id === selectedTeamId && u.role === 'player';
+              if (selectedTeamId === 'free-agents') return !u.team_id;
+              return u.team_id === selectedTeamId;
             }).length === 0 && (
-              <p className="text-sm text-mc-text-muted mt-1">No players on this team</p>
+              <p className="text-sm text-mc-text-muted mt-1">No members on this team</p>
             )}
           </div>
 

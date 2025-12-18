@@ -25,13 +25,13 @@ function AppRoutes() {
     );
   }
 
-  // Show landing page if not authenticated OR no valid session
-  const showLanding = !isAuthenticated && !session;
-
   return (
     <Routes>
-      {/* Landing page for non-authenticated users, Home for authenticated */}
-      <Route path="/" element={showLanding ? <Landing /> : <Layout><Home /></Layout>} />
+      {/* Landing page - accessible to everyone */}
+      <Route path="/landing" element={<Landing />} />
+      
+      {/* Home page - show landing for non-auth, home for auth */}
+      <Route path="/" element={(!isAuthenticated && !session) ? <Landing /> : <Layout><Home /></Layout>} />
       
       {/* Auth callback for OAuth */}
       <Route path="/auth/callback" element={<AuthCallback />} />
