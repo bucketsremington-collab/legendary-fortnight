@@ -273,7 +273,7 @@ export async function fetchPlayerStatsByUserId(userId: string): Promise<PlayerSt
     .eq('user_id', userId)
     .order('season', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('Error fetching player stats:', error);
@@ -293,9 +293,9 @@ export async function fetchPlayerStatsByUserIdAndSeason(userId: string, season: 
     .select('*')
     .eq('user_id', userId)
     .eq('season', season)
-    .single();
+    .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+  if (error) {
     console.error('Error fetching player stats:', error);
     return mockPlayerStats.find(s => s.user_id === userId && s.season === season) || null;
   }
