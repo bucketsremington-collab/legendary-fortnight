@@ -16,8 +16,6 @@ export default function PixelBasketball({ size = 32, className = '' }: PixelBask
     '..OOOO..',
   ];
   
-  const pixelSize = size / 8;
-  
   return (
     <svg 
       width={size} 

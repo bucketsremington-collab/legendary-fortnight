@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { User, PlayerStats } from '../types';
-import { getInitials, calculateStats } from '../utils/helpers';
+import { calculateStats } from '../utils/helpers';
 import { getTeamById } from '../data/mockData';
 import { TrendingUp, Award } from 'lucide-react';
 import MinecraftHead from './MinecraftHead';

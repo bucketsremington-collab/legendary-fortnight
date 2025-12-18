@@ -65,8 +65,6 @@ export default function StatsAdmin() {
     if (stats.games_played > 0) {
       const calculated = calculateStats({
         id: 'temp',
-        user_id: stats.user_id,
-        season: stats.season,
         ...stats,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
