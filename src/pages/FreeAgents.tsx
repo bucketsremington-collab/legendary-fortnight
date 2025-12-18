@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchFreeAgentListings, fetchUserById, fetchPlayerStatsByUserId } from '../data/dataService';
+import { useAuth } from '../context/AuthContext';
 import { User, PlayerStats } from '../types';
 import { calculateStats } from '../utils/helpers';
 import MinecraftHead from '../components/MinecraftHead';
@@ -17,6 +18,7 @@ interface FreeAgentListing {
 }
 
 export default function FreeAgents() {
+  const { loginWithDiscord } = useAuth();
   const [listings, setListings] = useState<FreeAgentListing[]>([]);
   const [users, setUsers] = useState<Map<string, User>>(new Map());
   const [stats, setStats] = useState<Map<string, PlayerStats>>(new Map());
@@ -81,7 +83,7 @@ export default function FreeAgents() {
             <p className="text-white/80">Connect your Discord to list yourself as a free agent.</p>
           </div>
           <button
-            onClick={() => window.alert('Discord OAuth would open here')}
+            onClick={() => loginWithDiscord()}
             className="px-4 py-2 bg-white text-[#5865F2] font-bold hover:bg-gray-100 transition-colors rounded"
           >
             Connect Discord

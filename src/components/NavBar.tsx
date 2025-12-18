@@ -8,7 +8,7 @@ import { User } from '../types';
 import MinecraftHead from './MinecraftHead';
 
 export default function Navbar() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, loginWithDiscord } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -34,8 +34,12 @@ export default function Navbar() {
     }
   };
 
-  const handleDiscordConnect = () => {
-    window.alert('Discord OAuth would open here');
+  const handleDiscordConnect = async () => {
+    try {
+      await loginWithDiscord();
+    } catch (error) {
+      console.error('Discord login error:', error);
+    }
   };
 
   return (
