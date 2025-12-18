@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { NewsItem } from '../data/mockData';
 import { 
   fetchNews, 
   fetchGames, 
   fetchFreeAgentListings, 
   fetchUsers, 
   fetchTeams,
-  fetchUserById 
+  fetchUserById,
+  NewsItem
 } from '../data/dataService';
 import { Team, User, Game } from '../types';
 import MinecraftHead from '../components/MinecraftHead';

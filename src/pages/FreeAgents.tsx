@@ -18,7 +18,7 @@ interface FreeAgentListing {
 }
 
 export default function FreeAgents() {
-  const { loginWithDiscord } = useAuth();
+  const { loginWithDiscord, isAuthenticated } = useAuth();
   const [listings, setListings] = useState<FreeAgentListing[]>([]);
   const [users, setUsers] = useState<Map<string, User>>(new Map());
   const [stats, setStats] = useState<Map<string, PlayerStats>>(new Map());
@@ -75,21 +75,23 @@ export default function FreeAgents() {
         <p className="text-mc-text-muted">Players looking for teams. Contact them via Discord to discuss.</p>
       </div>
 
-      {/* List yourself banner */}
-      <div className="p-4 bg-[#5865F2] rounded">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h3 className="font-bold text-white">Looking for a team?</h3>
-            <p className="text-white/80">Connect your Discord to list yourself as a free agent.</p>
+      {/* List yourself banner - only show if not authenticated */}
+      {!isAuthenticated && (
+        <div className="p-4 bg-[#5865F2] rounded">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h3 className="font-bold text-white">Looking for a team?</h3>
+              <p className="text-white/80">Connect your Discord to list yourself as a free agent.</p>
+            </div>
+            <button
+              onClick={() => loginWithDiscord()}
+              className="px-4 py-2 bg-white text-[#5865F2] font-bold hover:bg-gray-100 transition-colors rounded"
+            >
+              Connect Discord
+            </button>
           </div>
-          <button
-            onClick={() => loginWithDiscord()}
-            className="px-4 py-2 bg-white text-[#5865F2] font-bold hover:bg-gray-100 transition-colors rounded"
-          >
-            Connect Discord
-          </button>
         </div>
-      </div>
+      )}
 
       {/* Free Agent Listings */}
       <div className="space-y-3">

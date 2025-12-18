@@ -13,6 +13,9 @@ import {
   NewsItem,
 } from './mockData';
 
+// Re-export types for use in other modules
+export type { NewsItem, FreeAgentListing };
+
 // ============================================
 // TEAMS
 // ============================================

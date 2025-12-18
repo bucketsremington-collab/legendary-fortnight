@@ -14,17 +14,26 @@ import StatsAdmin from './pages/StatsAdmin';
 import AuthCallback from './pages/AuthCallback';
 
 function AppRoutes() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Show loading spinner briefly, but don't block forever
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-mc-dark flex items-center justify-center">
+        <div className="text-mc-text-muted">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <Routes>
-      {/* Landing page for non-authenticated users */}
+      {/* Landing page for non-authenticated users, Home for authenticated */}
       <Route path="/" element={isAuthenticated ? <Layout><Home /></Layout> : <Landing />} />
       
       {/* Auth callback for OAuth */}
       <Route path="/auth/callback" element={<AuthCallback />} />
       
-      {/* Public routes with layout */}
+      {/* All routes accessible to everyone (with layout) */}
       <Route path="/home" element={<Layout><Home /></Layout>} />
       <Route path="/profile/:username" element={<Layout><Profile /></Layout>} />
       <Route path="/teams" element={<Layout><Teams /></Layout>} />

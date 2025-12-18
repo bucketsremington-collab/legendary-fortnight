@@ -26,8 +26,81 @@ interface DiscordMemberInfo {
   joined_at: string;
 }
 
-// MBA Discord Server ID - UPDATE THIS with your actual server ID
-const MBA_DISCORD_SERVER_ID = '1450671860520976559';
+// MBA Discord Role IDs
+export const MBA_ROLE_IDS = {
+  // Staff roles
+  OWNER: '1450671860869238884',
+  DEVELOPER: '1450671860869238883',
+  MODERATOR: '1450671860869238882',
+  
+  // Team roles
+  WIZARDS: '1450671860869238879',
+  BOWS: '1450671860869238878',
+  SIXTY_FOURS: '1450671860869238877',
+  BUCKETS: '1450671860869238876',
+  MAGMA_CUBES: '1450671860869238875',
+  CREEPERS: '1450671860856524941',
+  ALLAYS: '1450671860856524940',
+  BREEZE: '1450671860856524939',
+  
+  // Position roles
+  FRANCHISE_OWNER: '1450671860856524938',
+  GENERAL_MANAGER: '1450671860856524937',
+  HEAD_COACH: '1450671860856524936',
+  ASSISTANT_COACH: '1450671860856524935',
+  FREE_AGENT: '1450671860856524934',
+} as const;
+
+// Map team role IDs to team IDs in the database
+export const TEAM_ROLE_TO_TEAM_ID: Record<string, string> = {
+  [MBA_ROLE_IDS.WIZARDS]: 'team-wizards',
+  [MBA_ROLE_IDS.BOWS]: 'team-bows',
+  [MBA_ROLE_IDS.SIXTY_FOURS]: 'team-64s',
+  [MBA_ROLE_IDS.BUCKETS]: 'team-buckets',
+  [MBA_ROLE_IDS.MAGMA_CUBES]: 'team-magma-cubes',
+  [MBA_ROLE_IDS.CREEPERS]: 'team-creepers',
+  [MBA_ROLE_IDS.ALLAYS]: 'team-allays',
+  [MBA_ROLE_IDS.BREEZE]: 'team-breeze',
+};
+
+// Helper to get user's MBA roles from role IDs
+export interface MBARoles {
+  isOwner: boolean;
+  isDeveloper: boolean;
+  isModerator: boolean;
+  isStaff: boolean;
+  isFranchiseOwner: boolean;
+  isGeneralManager: boolean;
+  isHeadCoach: boolean;
+  isAssistantCoach: boolean;
+  isFreeAgent: boolean;
+  teamRoleId: string | null;
+  teamId: string | null;
+}
+
+// MBA Discord Server ID from environment variable
+const MBA_DISCORD_SERVER_ID = import.meta.env.VITE_MBA_DISCORD_SERVER_ID || '';
+
+// Helper function to parse MBA roles from Discord role IDs
+function parseMBARoles(roleIds: string[]): MBARoles {
+  const userTeamRoleId = Object.keys(TEAM_ROLE_TO_TEAM_ID).find(roleId => roleIds.includes(roleId)) || null;
+  
+  return {
+    isOwner: roleIds.includes(MBA_ROLE_IDS.OWNER),
+    isDeveloper: roleIds.includes(MBA_ROLE_IDS.DEVELOPER),
+    isModerator: roleIds.includes(MBA_ROLE_IDS.MODERATOR),
+    isStaff: roleIds.includes(MBA_ROLE_IDS.OWNER) || 
+             roleIds.includes(MBA_ROLE_IDS.DEVELOPER) || 
+             roleIds.includes(MBA_ROLE_IDS.MODERATOR),
+    isFranchiseOwner: roleIds.includes(MBA_ROLE_IDS.FRANCHISE_OWNER),
+    isGeneralManager: roleIds.includes(MBA_ROLE_IDS.GENERAL_MANAGER),
+    isHeadCoach: roleIds.includes(MBA_ROLE_IDS.HEAD_COACH),
+    isAssistantCoach: roleIds.includes(MBA_ROLE_IDS.ASSISTANT_COACH),
+    isFreeAgent: roleIds.includes(MBA_ROLE_IDS.FREE_AGENT),
+    teamRoleId: userTeamRoleId,
+    teamId: userTeamRoleId ? TEAM_ROLE_TO_TEAM_ID[userTeamRoleId] : null,
+  };
+}
 
 interface AuthContextType {
   user: User | null;
@@ -38,6 +111,7 @@ interface AuthContextType {
   discordGuilds: DiscordGuild[];
   mbaServerMember: DiscordMemberInfo | null;
   mbaServerRoles: DiscordRole[];
+  mbaRoles: MBARoles;
   isInMBAServer: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   loginWithDiscord: () => Promise<void>;
@@ -49,6 +123,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Default empty roles
+const defaultMBARoles: MBARoles = {
+  isOwner: false,
+  isDeveloper: false,
+  isModerator: false,
+  isStaff: false,
+  isFranchiseOwner: false,
+  isGeneralManager: false,
+  isHeadCoach: false,
+  isAssistantCoach: false,
+  isFreeAgent: false,
+  teamRoleId: null,
+  teamId: null,
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
@@ -57,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [discordGuilds, setDiscordGuilds] = useState<DiscordGuild[]>([]);
   const [mbaServerMember, setMbaServerMember] = useState<DiscordMemberInfo | null>(null);
   const [mbaServerRoles, setMbaServerRoles] = useState<DiscordRole[]>([]);
+  const [mbaRoles, setMbaRoles] = useState<MBARoles>(defaultMBARoles);
 
   // Check if user is in MBA Discord server
   const isInMBAServer = discordGuilds.some(g => g.id === MBA_DISCORD_SERVER_ID);
@@ -107,15 +197,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (memberResponse.ok) {
         const memberData = await memberResponse.json();
+        const roles = memberData.roles || [];
+        
         setMbaServerMember({
-          roles: memberData.roles || [],
+          roles,
           nick: memberData.nick,
           joined_at: memberData.joined_at,
         });
+        
+        // Parse and set MBA roles
+        const parsedRoles = parseMBARoles(roles);
+        setMbaRoles(parsedRoles);
+        
         console.log('MBA Server member info:', memberData);
+        console.log('Parsed MBA roles:', parsedRoles);
       } else if (memberResponse.status === 404) {
         console.log('User is not a member of the MBA Discord server');
         setMbaServerMember(null);
+        setMbaRoles(defaultMBARoles);
       } else {
         console.error('Failed to fetch member info:', memberResponse.status);
       }
@@ -169,56 +268,84 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Initialize auth state
   useEffect(() => {
+    let isMounted = true;
+    
     const initAuth = async () => {
-      // Check for Supabase session
-      if (isSupabaseConfigured() && supabase) {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
-        if (currentSession) {
-          setSession(currentSession);
-          setSupabaseUser(currentSession.user);
-          await loadUserFromSupabaseAuth(currentSession.user);
-          setIsLoading(false);
-          return;
+      try {
+        // Check for Supabase session
+        if (isSupabaseConfigured() && supabase) {
+          const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.error('Error getting session:', error);
+          }
+          
+          if (currentSession && isMounted) {
+            setSession(currentSession);
+            setSupabaseUser(currentSession.user);
+            await loadUserFromSupabaseAuth(currentSession.user);
+            setIsLoading(false);
+            return;
+          }
         }
-      }
 
-      // Fallback: Check localStorage for legacy sessions
-      const storedUser = localStorage.getItem('mba_user');
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch {
-          localStorage.removeItem('mba_user');
+        // Fallback: Check localStorage for legacy sessions
+        const storedUser = localStorage.getItem('mba_user');
+        if (storedUser && isMounted) {
+          try {
+            setUser(JSON.parse(storedUser));
+          } catch {
+            localStorage.removeItem('mba_user');
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
         }
       }
-      setIsLoading(false);
     };
+
+    // Set a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    }, 5000);
 
     initAuth();
 
     // Set up auth state listener
+    let subscription: { unsubscribe: () => void } | null = null;
     if (isSupabaseConfigured() && supabase) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      const { data } = supabase.auth.onAuthStateChange(
         async (event, newSession) => {
           console.log('Auth state changed:', event, newSession?.user?.email);
           
-          setSession(newSession);
-          setSupabaseUser(newSession?.user || null);
-          
-          if (newSession?.user) {
-            await loadUserFromSupabaseAuth(newSession.user);
-          } else if (event === 'SIGNED_OUT') {
-            setUser(null);
-            localStorage.removeItem('mba_user');
+          if (isMounted) {
+            setSession(newSession);
+            setSupabaseUser(newSession?.user || null);
+            
+            if (newSession?.user) {
+              await loadUserFromSupabaseAuth(newSession.user);
+            } else if (event === 'SIGNED_OUT') {
+              setUser(null);
+              localStorage.removeItem('mba_user');
+            }
           }
         }
       );
-
-      return () => {
-        subscription.unsubscribe();
-      };
+      subscription = data.subscription;
     }
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeout);
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, []);
 
   // Fetch Discord data when session is available
@@ -271,16 +398,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Logout
   const logout = async () => {
-    if (isSupabaseConfigured() && supabase && session) {
-      await supabase.auth.signOut();
+    try {
+      if (isSupabaseConfigured() && supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Always clear local state regardless of Supabase logout success
+      setUser(null);
+      setSupabaseUser(null);
+      setSession(null);
+      setDiscordGuilds([]);
+      setMbaServerMember(null);
+      setMbaServerRoles([]);
+      setMbaRoles(defaultMBARoles);
+      localStorage.removeItem('mba_user');
     }
-    setUser(null);
-    setSupabaseUser(null);
-    setSession(null);
-    setDiscordGuilds([]);
-    setMbaServerMember(null);
-    setMbaServerRoles([]);
-    localStorage.removeItem('mba_user');
   };
 
   // Register new user
@@ -318,6 +452,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       discordGuilds,
       mbaServerMember,
       mbaServerRoles,
+      mbaRoles,
       isInMBAServer,
       login, 
       loginWithDiscord,
