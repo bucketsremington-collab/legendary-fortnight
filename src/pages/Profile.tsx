@@ -15,18 +15,6 @@ import { User, Team, PlayerStats, Accolade } from '../types';
 // Available seasons (add more as needed)
 const AVAILABLE_SEASONS = ['S0'];
 
-// Role display names
-const ROLE_DISPLAY_NAMES: Record<string, string> = {
-  isOwner: 'Owner',
-  isDeveloper: 'Developer',
-  isModerator: 'Moderator',
-  isFranchiseOwner: 'Franchise Owner',
-  isGeneralManager: 'General Manager',
-  isHeadCoach: 'Head Coach',
-  isAssistantCoach: 'Assistant Coach',
-  isFreeAgent: 'Free Agent',
-};
-
 // Team Logo component with fallback to abbreviation
 function TeamLogo({ team, size = 40 }: { team: Team, size?: number }) {
   if (team.logo_url) {
@@ -76,24 +64,6 @@ export default function Profile() {
   const isOwnProfile = currentUser?.id === user?.id || 
                        currentUser?.username.toLowerCase() === username?.toLowerCase() ||
                        currentUser?.minecraft_username.toLowerCase() === username?.toLowerCase();
-  
-  // Get active roles for display (only for own profile)
-  const getActiveRoles = (): string[] => {
-    if (!isOwnProfile || !mbaRoles) return [];
-    
-    const activeRoles: string[] = [];
-    
-    if (mbaRoles.isOwner) activeRoles.push(ROLE_DISPLAY_NAMES.isOwner);
-    if (mbaRoles.isDeveloper) activeRoles.push(ROLE_DISPLAY_NAMES.isDeveloper);
-    if (mbaRoles.isModerator) activeRoles.push(ROLE_DISPLAY_NAMES.isModerator);
-    if (mbaRoles.isFranchiseOwner) activeRoles.push(ROLE_DISPLAY_NAMES.isFranchiseOwner);
-    if (mbaRoles.isGeneralManager) activeRoles.push(ROLE_DISPLAY_NAMES.isGeneralManager);
-    if (mbaRoles.isHeadCoach) activeRoles.push(ROLE_DISPLAY_NAMES.isHeadCoach);
-    if (mbaRoles.isAssistantCoach) activeRoles.push(ROLE_DISPLAY_NAMES.isAssistantCoach);
-    if (mbaRoles.isFreeAgent) activeRoles.push(ROLE_DISPLAY_NAMES.isFreeAgent);
-    
-    return activeRoles;
-  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -235,20 +205,26 @@ export default function Profile() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold text-mc-text">{user.minecraft_username}</h1>
-                {/* Staff badges next to name - prominent display */}
+                {/* Staff badges next to name - these are special Discord roles */}
                 {isOwnProfile && mbaRoles.isOwner && (
-                  <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded">
-                    👑 OWNER
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-red-600 to-red-500 text-white text-xs font-bold rounded-full shadow-sm">
+                    <span>👑</span> OWNER
                   </span>
                 )}
                 {isOwnProfile && mbaRoles.isDeveloper && (
-                  <span className="px-2 py-0.5 bg-purple-500 text-white text-xs font-bold rounded">
-                    💻 DEV
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white text-xs font-bold rounded-full shadow-sm">
+                    <span>💻</span> DEV
                   </span>
                 )}
                 {isOwnProfile && mbaRoles.isModerator && (
-                  <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded">
-                    🛡️ MOD
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-xs font-bold rounded-full shadow-sm">
+                    <span>🛡️</span> MOD
+                  </span>
+                )}
+                {/* Show admin badge for non-own profiles based on database role */}
+                {!isOwnProfile && user.role === 'admin' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-bold rounded-full shadow-sm">
+                    ⭐ STAFF
                   </span>
                 )}
               </div>
@@ -324,31 +300,62 @@ export default function Profile() {
             <p className="text-mc-text mb-4">{user.bio}</p>
           )}
 
-          {/* Team */}
-          {team && (
-            <Link 
-              to={`/team/${team.id}`}
-              className="inline-flex items-center gap-2 px-3 py-1.5 bg-mc-surface-light border border-mc-border hover:border-mc-accent transition-colors mb-4"
-            >
-              <TeamLogo team={team} size={20} />
-              <span className="text-mc-text font-bold">{team.name}</span>
-            </Link>
-          )}
-
-          {!team && (
-            <Link 
-              to="/free-agents"
-              className="inline-flex items-center gap-2 px-3 py-1.5 bg-mc-surface-light border border-mc-border hover:border-mc-accent transition-colors mb-4"
-            >
-              <div 
-                className="w-5 h-5 rounded flex items-center justify-center text-white font-bold text-xs"
-                style={{ backgroundColor: '#6B7280' }}
+          {/* Team with Position Role */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            {team && (
+              <Link 
+                to={`/team/${team.id}`}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-mc-surface-light border border-mc-border hover:border-mc-accent transition-colors"
               >
-                FA
-              </div>
-              <span className="text-mc-text font-bold">Free Agent</span>
-            </Link>
-          )}
+                <TeamLogo team={team} size={20} />
+                <span className="text-mc-text font-bold">{team.name}</span>
+              </Link>
+            )}
+
+            {!team && (
+              <Link 
+                to="/free-agents"
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-mc-surface-light border border-mc-border hover:border-mc-accent transition-colors"
+              >
+                <div 
+                  className="w-5 h-5 rounded flex items-center justify-center text-white font-bold text-xs"
+                  style={{ backgroundColor: '#6B7280' }}
+                >
+                  FA
+                </div>
+                <span className="text-mc-text font-bold">Free Agent</span>
+              </Link>
+            )}
+
+            {/* Position roles next to team - show for own profile */}
+            {isOwnProfile && mbaRoles.isFranchiseOwner && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-500 to-amber-500 text-black text-xs font-bold rounded-full shadow-sm">
+                🏆 Franchise Owner
+              </span>
+            )}
+            {isOwnProfile && mbaRoles.isGeneralManager && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-orange-500 to-orange-400 text-white text-xs font-bold rounded-full shadow-sm">
+                📋 General Manager
+              </span>
+            )}
+            {isOwnProfile && mbaRoles.isHeadCoach && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-green-600 to-green-500 text-white text-xs font-bold rounded-full shadow-sm">
+                📢 Head Coach
+              </span>
+            )}
+            {isOwnProfile && mbaRoles.isAssistantCoach && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-teal-600 to-teal-500 text-white text-xs font-bold rounded-full shadow-sm">
+                🎯 Asst. Coach
+              </span>
+            )}
+            
+            {/* Show coach badge for non-own profiles based on database role */}
+            {!isOwnProfile && user.role === 'coach' && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-green-600 to-teal-500 text-white text-xs font-bold rounded-full shadow-sm">
+                🎯 Staff
+              </span>
+            )}
+          </div>
 
           {/* Discord Info */}
           <div className="flex items-center gap-2 text-mc-text-muted mb-4">
@@ -357,30 +364,6 @@ export default function Profile() {
             </svg>
             <span>{user.username}</span>
           </div>
-          
-          {/* Discord Roles - only show on own profile if in MBA server */}
-          {isOwnProfile && isInMBAServer && getActiveRoles().length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {getActiveRoles().map(role => (
-                <span 
-                  key={role}
-                  className={`text-xs px-2 py-1 rounded font-bold ${
-                    role === 'Owner' ? 'bg-red-500 text-white' :
-                    role === 'Developer' ? 'bg-purple-500 text-white' :
-                    role === 'Moderator' ? 'bg-blue-500 text-white' :
-                    role === 'Franchise Owner' ? 'bg-mc-gold text-black' :
-                    role === 'General Manager' ? 'bg-orange-500 text-white' :
-                    role === 'Head Coach' ? 'bg-green-600 text-white' :
-                    role === 'Assistant Coach' ? 'bg-green-500 text-white' :
-                    role === 'Free Agent' ? 'bg-gray-500 text-white' :
-                    'bg-mc-surface-light text-mc-text'
-                  }`}
-                >
-                  {role}
-                </span>
-              ))}
-            </div>
-          )}
           
           {/* Sync Roles Button - only show on own profile if in MBA server */}
           {isOwnProfile && isInMBAServer && (
