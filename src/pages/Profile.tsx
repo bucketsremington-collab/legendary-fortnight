@@ -213,17 +213,23 @@ export default function Profile() {
                 {/* For own profile, use mbaRoles (live), for others use stored discord_roles */}
                 {(isOwnProfile ? mbaRoles.isOwner : hasDiscordRole(user, MBA_ROLE_IDS.OWNER)) && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-red-600 to-red-500 text-white text-xs font-bold rounded-full shadow-sm">
-                    <span>👑</span> OWNER
+                    👑 OWNER
                   </span>
                 )}
                 {(isOwnProfile ? mbaRoles.isDeveloper : hasDiscordRole(user, MBA_ROLE_IDS.DEVELOPER)) && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white text-xs font-bold rounded-full shadow-sm">
-                    <span>💻</span> DEV
+                    💻 DEV
                   </span>
                 )}
                 {(isOwnProfile ? mbaRoles.isModerator : hasDiscordRole(user, MBA_ROLE_IDS.MODERATOR)) && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-xs font-bold rounded-full shadow-sm">
-                    <span>🛡️</span> MOD
+                    🛡️ MOD
+                  </span>
+                )}
+                {/* Fallback: show generic STAFF badge if user has admin role but no discord_roles synced yet */}
+                {!isOwnProfile && user.role === 'admin' && !user.discord_roles?.length && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-bold rounded-full shadow-sm">
+                    ⭐ STAFF
                   </span>
                 )}
               </div>
@@ -345,6 +351,12 @@ export default function Profile() {
             {(isOwnProfile ? mbaRoles.isAssistantCoach : hasDiscordRole(user, MBA_ROLE_IDS.ASSISTANT_COACH)) && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-teal-600 to-teal-500 text-white text-xs font-bold rounded-full shadow-sm">
                 🎯 Asst. Coach
+              </span>
+            )}
+            {/* Fallback: show generic Coach badge if user has coach role but no discord_roles synced yet */}
+            {!isOwnProfile && user.role === 'coach' && !user.discord_roles?.length && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-green-600 to-teal-500 text-white text-xs font-bold rounded-full shadow-sm">
+                🎯 Coach
               </span>
             )}
           </div>

@@ -101,7 +101,7 @@ export default function Stats() {
             <p className="text-mc-text-muted">
               Season statistical leaders and rankings 
               <span className="text-xs ml-2">
-                ({playerStats.length} stat records, {users.filter(u => u.role === 'player').length} players)
+                ({playersWithStats.length} Players)
               </span>
             </p>
           </div>
