@@ -412,24 +412,24 @@ export default function Profile() {
         <div className="flex items-center justify-between border-b border-mc-border pb-2 mb-4">
           <h2 className="text-lg font-bold text-mc-text">Season Stats</h2>
           <div className="flex items-center gap-2">
-            <div className="flex rounded overflow-hidden border border-mc-border">
+            <div className="inline-flex rounded-md overflow-hidden">
               <button
                 onClick={() => setShowTotals(false)}
-                className={`px-3 py-1 text-sm font-medium transition-colors ${
+                className={`px-3 py-1 text-sm font-medium transition-colors border ${
                   !showTotals 
-                    ? 'bg-mc-accent text-white' 
-                    : 'bg-mc-surface text-mc-text-muted hover:bg-mc-surface-light'
-                }`}
+                    ? 'bg-mc-accent text-white border-mc-accent' 
+                    : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
+                } rounded-l-md border-r-0`}
               >
                 Averages
               </button>
               <button
                 onClick={() => setShowTotals(true)}
-                className={`px-3 py-1 text-sm font-medium transition-colors ${
+                className={`px-3 py-1 text-sm font-medium transition-colors border ${
                   showTotals 
-                    ? 'bg-mc-accent text-white' 
-                    : 'bg-mc-surface text-mc-text-muted hover:bg-mc-surface-light'
-                }`}
+                    ? 'bg-mc-accent text-white border-mc-accent' 
+                    : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
+                } rounded-r-md`}
               >
                 Totals
               </button>

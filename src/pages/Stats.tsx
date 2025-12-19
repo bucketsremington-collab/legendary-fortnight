@@ -135,24 +135,24 @@ export default function Stats() {
           </div>
           <div className="flex items-center gap-2">
             {/* Averages/Totals Toggle */}
-            <div className="flex rounded overflow-hidden border border-mc-border">
+            <div className="inline-flex rounded-md overflow-hidden">
               <button
                 onClick={() => setShowAverages(true)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 text-sm font-medium transition-colors border ${
                   showAverages 
-                    ? 'bg-mc-accent text-white' 
-                    : 'bg-mc-surface text-mc-text-muted hover:bg-mc-surface-light'
-                }`}
+                    ? 'bg-mc-accent text-white border-mc-accent' 
+                    : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
+                } rounded-l-md border-r-0`}
               >
                 Averages
               </button>
               <button
                 onClick={() => setShowAverages(false)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 text-sm font-medium transition-colors border ${
                   !showAverages 
-                    ? 'bg-mc-accent text-white' 
-                    : 'bg-mc-surface text-mc-text-muted hover:bg-mc-surface-light'
-                }`}
+                    ? 'bg-mc-accent text-white border-mc-accent' 
+                    : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
+                } rounded-r-md`}
               >
                 Totals
               </button>
@@ -166,7 +166,7 @@ export default function Stats() {
             >
               {AVAILABLE_SEASONS.map(season => (
                 <option key={season} value={season}>
-                  S{season.replace('S', '')}
+                  Season {season.replace('S', '')}
                 </option>
               ))}
             </select>
