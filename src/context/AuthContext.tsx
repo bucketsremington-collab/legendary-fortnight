@@ -711,7 +711,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setMbaServerMember(null);
       setMbaServerRoles([]);
       setMbaRoles(defaultMBARoles);
+      // Clear ALL cached data
       localStorage.removeItem('mba_user');
+      localStorage.removeItem(DISCORD_CACHE_KEY);
     }
   };
 
