@@ -7,11 +7,15 @@ import {
   fetchAccoladesByUserId,
   updateUser,
 } from '../data/dataService';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, MBA_ROLE_IDS } from '../context/AuthContext';
 import { calculateStats } from '../utils/helpers';
 import MinecraftHead from '../components/MinecraftHead';
 import { User, Team, PlayerStats, Accolade } from '../types';
 
+// Helper to check if user has a specific Discord role
+function hasDiscordRole(user: User | null, roleId: string): boolean {
+  return user?.discord_roles?.includes(roleId) ?? false;
+}
 // Available seasons (add more as needed)
 const AVAILABLE_SEASONS = ['S0'];
 
@@ -205,26 +209,21 @@ export default function Profile() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold text-mc-text">{user.minecraft_username}</h1>
-                {/* Staff badges next to name - these are special Discord roles */}
-                {isOwnProfile && mbaRoles.isOwner && (
+                {/* Staff badges - check stored discord_roles for all users */}
+                {/* For own profile, use mbaRoles (live), for others use stored discord_roles */}
+                {(isOwnProfile ? mbaRoles.isOwner : hasDiscordRole(user, MBA_ROLE_IDS.OWNER)) && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-red-600 to-red-500 text-white text-xs font-bold rounded-full shadow-sm">
                     <span>👑</span> OWNER
                   </span>
                 )}
-                {isOwnProfile && mbaRoles.isDeveloper && (
+                {(isOwnProfile ? mbaRoles.isDeveloper : hasDiscordRole(user, MBA_ROLE_IDS.DEVELOPER)) && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white text-xs font-bold rounded-full shadow-sm">
                     <span>💻</span> DEV
                   </span>
                 )}
-                {isOwnProfile && mbaRoles.isModerator && (
+                {(isOwnProfile ? mbaRoles.isModerator : hasDiscordRole(user, MBA_ROLE_IDS.MODERATOR)) && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-xs font-bold rounded-full shadow-sm">
                     <span>🛡️</span> MOD
-                  </span>
-                )}
-                {/* Show admin badge for non-own profiles based on database role */}
-                {!isOwnProfile && user.role === 'admin' && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-bold rounded-full shadow-sm">
-                    ⭐ STAFF
                   </span>
                 )}
               </div>
@@ -327,32 +326,25 @@ export default function Profile() {
               </Link>
             )}
 
-            {/* Position roles next to team - show for own profile */}
-            {isOwnProfile && mbaRoles.isFranchiseOwner && (
+            {/* Position roles next to team - check stored discord_roles for all users */}
+            {(isOwnProfile ? mbaRoles.isFranchiseOwner : hasDiscordRole(user, MBA_ROLE_IDS.FRANCHISE_OWNER)) && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-500 to-amber-500 text-black text-xs font-bold rounded-full shadow-sm">
                 🏆 Franchise Owner
               </span>
             )}
-            {isOwnProfile && mbaRoles.isGeneralManager && (
+            {(isOwnProfile ? mbaRoles.isGeneralManager : hasDiscordRole(user, MBA_ROLE_IDS.GENERAL_MANAGER)) && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-orange-500 to-orange-400 text-white text-xs font-bold rounded-full shadow-sm">
                 📋 General Manager
               </span>
             )}
-            {isOwnProfile && mbaRoles.isHeadCoach && (
+            {(isOwnProfile ? mbaRoles.isHeadCoach : hasDiscordRole(user, MBA_ROLE_IDS.HEAD_COACH)) && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-green-600 to-green-500 text-white text-xs font-bold rounded-full shadow-sm">
                 📢 Head Coach
               </span>
             )}
-            {isOwnProfile && mbaRoles.isAssistantCoach && (
+            {(isOwnProfile ? mbaRoles.isAssistantCoach : hasDiscordRole(user, MBA_ROLE_IDS.ASSISTANT_COACH)) && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-teal-600 to-teal-500 text-white text-xs font-bold rounded-full shadow-sm">
                 🎯 Asst. Coach
-              </span>
-            )}
-            
-            {/* Show coach badge for non-own profiles based on database role */}
-            {!isOwnProfile && user.role === 'coach' && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-green-600 to-teal-500 text-white text-xs font-bold rounded-full shadow-sm">
-                🎯 Staff
               </span>
             )}
           </div>
