@@ -412,16 +412,28 @@ export default function Profile() {
         <div className="flex items-center justify-between border-b border-mc-border pb-2 mb-4">
           <h2 className="text-lg font-bold text-mc-text">Season Stats</h2>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowTotals(!showTotals)}
-              className={`px-3 py-1 text-sm rounded transition-colors ${
-                showTotals 
-                  ? 'bg-mc-accent text-white' 
-                  : 'bg-mc-surface border border-mc-border text-mc-text hover:bg-mc-surface-light'
-              }`}
-            >
-              {showTotals ? 'Totals' : 'Averages'}
-            </button>
+            <div className="flex rounded overflow-hidden border border-mc-border">
+              <button
+                onClick={() => setShowTotals(false)}
+                className={`px-3 py-1 text-sm font-medium transition-colors ${
+                  !showTotals 
+                    ? 'bg-mc-accent text-white' 
+                    : 'bg-mc-surface text-mc-text-muted hover:bg-mc-surface-light'
+                }`}
+              >
+                Averages
+              </button>
+              <button
+                onClick={() => setShowTotals(true)}
+                className={`px-3 py-1 text-sm font-medium transition-colors ${
+                  showTotals 
+                    ? 'bg-mc-accent text-white' 
+                    : 'bg-mc-surface text-mc-text-muted hover:bg-mc-surface-light'
+                }`}
+              >
+                Totals
+              </button>
+            </div>
             <select
               value={selectedSeason}
               onChange={(e) => setSelectedSeason(e.target.value)}

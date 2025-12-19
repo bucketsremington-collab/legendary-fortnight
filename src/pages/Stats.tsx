@@ -133,12 +133,12 @@ export default function Stats() {
               </span>
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {/* Averages/Totals Toggle */}
             <div className="flex rounded overflow-hidden border border-mc-border">
               <button
                 onClick={() => setShowAverages(true)}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                   showAverages 
                     ? 'bg-mc-accent text-white' 
                     : 'bg-mc-surface text-mc-text-muted hover:bg-mc-surface-light'
@@ -148,7 +148,7 @@ export default function Stats() {
               </button>
               <button
                 onClick={() => setShowAverages(false)}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                   !showAverages 
                     ? 'bg-mc-accent text-white' 
                     : 'bg-mc-surface text-mc-text-muted hover:bg-mc-surface-light'
@@ -162,16 +162,16 @@ export default function Stats() {
               value={selectedSeason}
               onChange={(e) => setSelectedSeason(e.target.value)}
               title="Select season"
-              className="px-3 py-2 bg-mc-surface border border-mc-border rounded text-mc-text focus:outline-none focus:border-mc-accent"
+              className="px-2 py-1.5 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
             >
               {AVAILABLE_SEASONS.map(season => (
                 <option key={season} value={season}>
-                  Season {season.replace('S', '')}
+                  S{season.replace('S', '')}
                 </option>
               ))}
             </select>
-            <div className={`px-2 py-1 rounded text-xs font-bold ${isDbConnected ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'}`}>
-              {isDbConnected ? 'Live Data' : 'Demo Data'}
+            <div className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap ${isDbConnected ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'}`}>
+              {isDbConnected ? 'Live' : 'Demo'}
             </div>
           </div>
         </div>
