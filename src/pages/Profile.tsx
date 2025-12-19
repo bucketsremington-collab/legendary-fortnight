@@ -415,7 +415,7 @@ export default function Profile() {
             <div className="inline-flex rounded-md overflow-hidden">
               <button
                 onClick={() => setShowTotals(false)}
-                className={`px-3 py-1 text-sm font-medium transition-colors border ${
+                className={`px-3 py-1 text-sm font-medium transition-colors border focus:outline-none ${
                   !showTotals 
                     ? 'bg-mc-accent text-white border-mc-accent' 
                     : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
@@ -425,7 +425,7 @@ export default function Profile() {
               </button>
               <button
                 onClick={() => setShowTotals(true)}
-                className={`px-3 py-1 text-sm font-medium transition-colors border ${
+                className={`px-3 py-1 text-sm font-medium transition-colors border focus:outline-none ${
                   showTotals 
                     ? 'bg-mc-accent text-white border-mc-accent' 
                     : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'

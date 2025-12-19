@@ -138,7 +138,7 @@ export default function Stats() {
             <div className="inline-flex rounded-md overflow-hidden">
               <button
                 onClick={() => setShowAverages(true)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors border ${
+                className={`px-3 py-1.5 text-sm font-medium transition-colors border focus:outline-none ${
                   showAverages 
                     ? 'bg-mc-accent text-white border-mc-accent' 
                     : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
@@ -148,7 +148,7 @@ export default function Stats() {
               </button>
               <button
                 onClick={() => setShowAverages(false)}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors border ${
+                className={`px-3 py-1.5 text-sm font-medium transition-colors border focus:outline-none ${
                   !showAverages 
                     ? 'bg-mc-accent text-white border-mc-accent' 
                     : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
