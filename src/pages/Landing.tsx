@@ -40,7 +40,7 @@ export default function Landing() {
     }
   };
 
-  const playerCount = users.filter(u => u.role === 'player').length;
+  const playerCount = users.length; // Count all registered users
   const teamCount = teams.length;
 
   return (

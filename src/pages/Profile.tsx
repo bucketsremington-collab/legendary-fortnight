@@ -63,6 +63,9 @@ export default function Profile() {
   // Sync roles state
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  
+  // Stats display mode (average or total)
+  const [showTotals, setShowTotals] = useState(false);
 
   // Check if this is the current user's profile
   const isOwnProfile = currentUser?.id === user?.id || 
@@ -408,59 +411,109 @@ export default function Profile() {
       <div className="mc-card p-6">
         <div className="flex items-center justify-between border-b border-mc-border pb-2 mb-4">
           <h2 className="text-lg font-bold text-mc-text">Season Stats</h2>
-          <select
-            value={selectedSeason}
-            onChange={(e) => setSelectedSeason(e.target.value)}
-            title="Select season"
-            className="px-3 py-1 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
-          >
-            {AVAILABLE_SEASONS.map(season => (
-              <option key={season} value={season}>
-                Season {season.replace('S', '')}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowTotals(!showTotals)}
+              className={`px-3 py-1 text-sm rounded transition-colors ${
+                showTotals 
+                  ? 'bg-mc-accent text-white' 
+                  : 'bg-mc-surface border border-mc-border text-mc-text hover:bg-mc-surface-light'
+              }`}
+            >
+              {showTotals ? 'Totals' : 'Averages'}
+            </button>
+            <select
+              value={selectedSeason}
+              onChange={(e) => setSelectedSeason(e.target.value)}
+              title="Select season"
+              className="px-3 py-1 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
+            >
+              {AVAILABLE_SEASONS.map(season => (
+                <option key={season} value={season}>
+                  Season {season.replace('S', '')}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         
         {stats && calculated ? (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                <div className="text-2xl font-bold text-mc-accent">{stats.games_played}</div>
-                <div className="text-sm text-mc-text-muted">Games</div>
-              </div>
-              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                <div className="text-2xl font-bold text-mc-accent">{calculated.ppg.toFixed(1)}</div>
-                <div className="text-sm text-mc-text-muted">PPG</div>
-              </div>
-              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                <div className="text-2xl font-bold text-mc-accent">{calculated.apg.toFixed(1)}</div>
-                <div className="text-sm text-mc-text-muted">APG</div>
-              </div>
-              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                <div className="text-2xl font-bold text-mc-accent">{calculated.rpg.toFixed(1)}</div>
-                <div className="text-sm text-mc-text-muted">RPG</div>
-              </div>
-            </div>
+            {showTotals ? (
+              /* Total Stats View */
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-2xl font-bold text-mc-accent">{stats.games_played}</div>
+                    <div className="text-sm text-mc-text-muted">Games</div>
+                  </div>
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-2xl font-bold text-mc-accent">{stats.points_scored}</div>
+                    <div className="text-sm text-mc-text-muted">PTS</div>
+                  </div>
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-2xl font-bold text-mc-accent">{stats.assists}</div>
+                    <div className="text-sm text-mc-text-muted">AST</div>
+                  </div>
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-2xl font-bold text-mc-accent">{stats.rebounds}</div>
+                    <div className="text-sm text-mc-text-muted">REB</div>
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-4 gap-4 mt-4">
-              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                <div className="text-xl font-bold text-mc-text">{stats.points_scored}</div>
-                <div className="text-sm text-mc-text-muted">PTS</div>
-              </div>
-              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                <div className="text-xl font-bold text-mc-text">{stats.assists}</div>
-                <div className="text-sm text-mc-text-muted">AST</div>
-              </div>
-              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                <div className="text-xl font-bold text-mc-text">{stats.steals}</div>
-                <div className="text-sm text-mc-text-muted">STL</div>
-              </div>
-              <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                <div className="text-xl font-bold text-mc-text">{stats.blocks}</div>
-                <div className="text-sm text-mc-text-muted">BLK</div>
-              </div>
-            </div>
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-xl font-bold text-mc-text">{stats.steals}</div>
+                    <div className="text-sm text-mc-text-muted">STL</div>
+                  </div>
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-xl font-bold text-mc-text">{stats.blocks}</div>
+                    <div className="text-sm text-mc-text-muted">BLK</div>
+                  </div>
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-xl font-bold text-mc-text">{stats.turnovers}</div>
+                    <div className="text-sm text-mc-text-muted">TO</div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Averages View */
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-2xl font-bold text-mc-accent">{stats.games_played}</div>
+                    <div className="text-sm text-mc-text-muted">Games</div>
+                  </div>
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-2xl font-bold text-mc-accent">{calculated.ppg.toFixed(1)}</div>
+                    <div className="text-sm text-mc-text-muted">PPG</div>
+                  </div>
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-2xl font-bold text-mc-accent">{calculated.apg.toFixed(1)}</div>
+                    <div className="text-sm text-mc-text-muted">APG</div>
+                  </div>
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-2xl font-bold text-mc-accent">{calculated.rpg.toFixed(1)}</div>
+                    <div className="text-sm text-mc-text-muted">RPG</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-xl font-bold text-mc-text">{calculated.spg.toFixed(1)}</div>
+                    <div className="text-sm text-mc-text-muted">SPG</div>
+                  </div>
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-xl font-bold text-mc-text">{calculated.bpg.toFixed(1)}</div>
+                    <div className="text-sm text-mc-text-muted">BPG</div>
+                  </div>
+                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+                    <div className="text-xl font-bold text-mc-text">{stats.rebounds}</div>
+                    <div className="text-sm text-mc-text-muted">Total REB</div>
+                  </div>
+                </div>
+              </>
+            )}
           </>
         ) : (
           <p className="text-mc-text-muted">No stats for this season</p>
