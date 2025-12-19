@@ -164,6 +164,7 @@ export interface CalculatedStats {
   rpg: number; // Rebounds per game
   spg: number; // Steals per game
   bpg: number; // Blocks per game
+  tpg: number; // Turnovers per game
   fg_pct: number; // Field goal percentage
   three_pct: number; // 3-point percentage
   ft_pct: number; // Free throw percentage

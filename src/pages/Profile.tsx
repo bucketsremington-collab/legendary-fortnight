@@ -508,8 +508,8 @@ export default function Profile() {
                     <div className="text-sm text-mc-text-muted">BPG</div>
                   </div>
                   <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-xl font-bold text-mc-text">{stats.rebounds}</div>
-                    <div className="text-sm text-mc-text-muted">Total REB</div>
+                    <div className="text-xl font-bold text-mc-text">{calculated.tpg.toFixed(1)}</div>
+                    <div className="text-sm text-mc-text-muted">TPG</div>
                   </div>
                 </div>
               </>

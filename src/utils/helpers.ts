@@ -9,6 +9,7 @@ export function calculateStats(stats: PlayerStats): CalculatedStats {
     rpg: Number((stats.rebounds / gp).toFixed(1)),
     spg: Number((stats.steals / gp).toFixed(1)),
     bpg: Number((stats.blocks / gp).toFixed(1)),
+    tpg: Number((stats.turnovers / gp).toFixed(1)),
     fg_pct: stats.field_goals_attempted > 0 
       ? Number(((stats.field_goals_made / stats.field_goals_attempted) * 100).toFixed(1))
       : 0,

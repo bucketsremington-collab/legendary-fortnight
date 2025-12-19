@@ -6,13 +6,16 @@ import { calculateStats } from '../utils/helpers';
 import MinecraftHead from '../components/MinecraftHead';
 import { User, PlayerStats, Team } from '../types';
 
-type SortKey = 'ppg' | 'rpg' | 'apg' | 'spg' | 'bpg';
+type SortKey = 'ppg' | 'rpg' | 'apg' | 'spg' | 'bpg' | 'tpg';
+type TotalSortKey = 'pts' | 'reb' | 'ast' | 'stl' | 'blk' | 'tov';
 
 // Available seasons (add more as needed)
 const AVAILABLE_SEASONS = ['S0'];
 
 export default function Stats() {
   const [sortBy, setSortBy] = useState<SortKey>('ppg');
+  const [totalSortBy, setTotalSortBy] = useState<TotalSortKey>('pts');
+  const [showAverages, setShowAverages] = useState(true);
   const [selectedSeason, setSelectedSeason] = useState<string>('S0');
   const [users, setUsers] = useState<User[]>([]);
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
@@ -68,9 +71,24 @@ export default function Stats() {
 
   // Sort by selected stat
   const sortedPlayers = [...playersWithStats].sort((a, b) => {
-    const aVal = a.calculated?.[sortBy] || 0;
-    const bVal = b.calculated?.[sortBy] || 0;
-    return bVal - aVal;
+    if (showAverages) {
+      const aVal = a.calculated?.[sortBy] || 0;
+      const bVal = b.calculated?.[sortBy] || 0;
+      return bVal - aVal;
+    } else {
+      // Sort by totals
+      const totalKeyMap: Record<TotalSortKey, keyof PlayerStats> = {
+        pts: 'points_scored',
+        reb: 'rebounds',
+        ast: 'assists',
+        stl: 'steals',
+        blk: 'blocks',
+        tov: 'turnovers'
+      };
+      const aVal = (a.stats?.[totalKeyMap[totalSortBy]] as number) || 0;
+      const bVal = (b.stats?.[totalKeyMap[totalSortBy]] as number) || 0;
+      return bVal - aVal;
+    }
   });
 
   const sortOptions: { key: SortKey; label: string }[] = [
@@ -79,6 +97,16 @@ export default function Stats() {
     { key: 'apg', label: 'Assists' },
     { key: 'spg', label: 'Steals' },
     { key: 'bpg', label: 'Blocks' },
+    { key: 'tpg', label: 'Turnovers' },
+  ];
+
+  const totalSortOptions: { key: TotalSortKey; label: string }[] = [
+    { key: 'pts', label: 'Points' },
+    { key: 'reb', label: 'Rebounds' },
+    { key: 'ast', label: 'Assists' },
+    { key: 'stl', label: 'Steals' },
+    { key: 'blk', label: 'Blocks' },
+    { key: 'tov', label: 'Turnovers' },
   ];
 
   if (isLoading) {
@@ -106,6 +134,29 @@ export default function Stats() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Averages/Totals Toggle */}
+            <div className="flex rounded overflow-hidden border border-mc-border">
+              <button
+                onClick={() => setShowAverages(true)}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  showAverages 
+                    ? 'bg-mc-accent text-white' 
+                    : 'bg-mc-surface text-mc-text-muted hover:bg-mc-surface-light'
+                }`}
+              >
+                Averages
+              </button>
+              <button
+                onClick={() => setShowAverages(false)}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  !showAverages 
+                    ? 'bg-mc-accent text-white' 
+                    : 'bg-mc-surface text-mc-text-muted hover:bg-mc-surface-light'
+                }`}
+              >
+                Totals
+              </button>
+            </div>
             {/* Season Dropdown */}
             <select
               value={selectedSeason}
@@ -128,19 +179,35 @@ export default function Stats() {
 
       {/* Sort Options */}
       <div className="flex flex-wrap gap-2">
-        {sortOptions.map(option => (
-          <button
-            key={option.key}
-            onClick={() => setSortBy(option.key)}
-            className={`px-4 py-2 rounded transition-colors ${
-              sortBy === option.key
-                ? 'bg-mc-accent text-white'
-                : 'bg-mc-surface text-mc-text-muted border border-mc-border hover:border-mc-accent'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
+        {showAverages ? (
+          sortOptions.map(option => (
+            <button
+              key={option.key}
+              onClick={() => setSortBy(option.key)}
+              className={`px-4 py-2 rounded transition-colors ${
+                sortBy === option.key
+                  ? 'bg-mc-accent text-white'
+                  : 'bg-mc-surface text-mc-text-muted border border-mc-border hover:border-mc-accent'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))
+        ) : (
+          totalSortOptions.map(option => (
+            <button
+              key={option.key}
+              onClick={() => setTotalSortBy(option.key)}
+              className={`px-4 py-2 rounded transition-colors ${
+                totalSortBy === option.key
+                  ? 'bg-mc-accent text-white'
+                  : 'bg-mc-surface text-mc-text-muted border border-mc-border hover:border-mc-accent'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))
+        )}
       </div>
 
       {/* Stats Table */}
@@ -153,11 +220,25 @@ export default function Stats() {
                 <th className="text-left px-4 py-3 text-mc-text-muted">Player</th>
                 <th className="text-left px-4 py-3 text-mc-text-muted hidden sm:table-cell">Team</th>
                 <th className="text-center px-3 py-3 text-mc-text-muted">GP</th>
-                <th className={`text-center px-3 py-3 ${sortBy === 'ppg' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>PPG</th>
-                <th className={`text-center px-3 py-3 ${sortBy === 'rpg' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>RPG</th>
-                <th className={`text-center px-3 py-3 ${sortBy === 'apg' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>APG</th>
-                <th className={`text-center px-3 py-3 hidden md:table-cell ${sortBy === 'spg' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>SPG</th>
-                <th className={`text-center px-3 py-3 hidden md:table-cell ${sortBy === 'bpg' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>BPG</th>
+                {showAverages ? (
+                  <>
+                    <th className={`text-center px-3 py-3 ${sortBy === 'ppg' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>PPG</th>
+                    <th className={`text-center px-3 py-3 ${sortBy === 'rpg' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>RPG</th>
+                    <th className={`text-center px-3 py-3 ${sortBy === 'apg' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>APG</th>
+                    <th className={`text-center px-3 py-3 hidden md:table-cell ${sortBy === 'spg' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>SPG</th>
+                    <th className={`text-center px-3 py-3 hidden md:table-cell ${sortBy === 'bpg' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>BPG</th>
+                    <th className={`text-center px-3 py-3 hidden lg:table-cell ${sortBy === 'tpg' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>TPG</th>
+                  </>
+                ) : (
+                  <>
+                    <th className={`text-center px-3 py-3 ${totalSortBy === 'pts' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>PTS</th>
+                    <th className={`text-center px-3 py-3 ${totalSortBy === 'reb' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>REB</th>
+                    <th className={`text-center px-3 py-3 ${totalSortBy === 'ast' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>AST</th>
+                    <th className={`text-center px-3 py-3 hidden md:table-cell ${totalSortBy === 'stl' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>STL</th>
+                    <th className={`text-center px-3 py-3 hidden md:table-cell ${totalSortBy === 'blk' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>BLK</th>
+                    <th className={`text-center px-3 py-3 hidden lg:table-cell ${totalSortBy === 'tov' ? 'text-mc-accent' : 'text-mc-text-muted'}`}>TOV</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -178,21 +259,49 @@ export default function Stats() {
                     ) : 'FA'}
                   </td>
                   <td className="text-center px-3 py-3 text-mc-text">{stats?.games_played}</td>
-                  <td className={`text-center px-3 py-3 ${sortBy === 'ppg' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
-                    {calculated?.ppg.toFixed(1)}
-                  </td>
-                  <td className={`text-center px-3 py-3 ${sortBy === 'rpg' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
-                    {calculated?.rpg.toFixed(1)}
-                  </td>
-                  <td className={`text-center px-3 py-3 ${sortBy === 'apg' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
-                    {calculated?.apg.toFixed(1)}
-                  </td>
-                  <td className={`text-center px-3 py-3 hidden md:table-cell ${sortBy === 'spg' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
-                    {calculated?.spg.toFixed(1)}
-                  </td>
-                  <td className={`text-center px-3 py-3 hidden md:table-cell ${sortBy === 'bpg' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
-                    {calculated?.bpg.toFixed(1)}
-                  </td>
+                  {showAverages ? (
+                    <>
+                      <td className={`text-center px-3 py-3 ${sortBy === 'ppg' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
+                        {calculated?.ppg.toFixed(1)}
+                      </td>
+                      <td className={`text-center px-3 py-3 ${sortBy === 'rpg' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
+                        {calculated?.rpg.toFixed(1)}
+                      </td>
+                      <td className={`text-center px-3 py-3 ${sortBy === 'apg' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
+                        {calculated?.apg.toFixed(1)}
+                      </td>
+                      <td className={`text-center px-3 py-3 hidden md:table-cell ${sortBy === 'spg' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
+                        {calculated?.spg.toFixed(1)}
+                      </td>
+                      <td className={`text-center px-3 py-3 hidden md:table-cell ${sortBy === 'bpg' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
+                        {calculated?.bpg.toFixed(1)}
+                      </td>
+                      <td className={`text-center px-3 py-3 hidden lg:table-cell ${sortBy === 'tpg' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
+                        {calculated?.tpg.toFixed(1)}
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className={`text-center px-3 py-3 ${totalSortBy === 'pts' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
+                        {stats?.points_scored}
+                      </td>
+                      <td className={`text-center px-3 py-3 ${totalSortBy === 'reb' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
+                        {stats?.rebounds}
+                      </td>
+                      <td className={`text-center px-3 py-3 ${totalSortBy === 'ast' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
+                        {stats?.assists}
+                      </td>
+                      <td className={`text-center px-3 py-3 hidden md:table-cell ${totalSortBy === 'stl' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
+                        {stats?.steals}
+                      </td>
+                      <td className={`text-center px-3 py-3 hidden md:table-cell ${totalSortBy === 'blk' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
+                        {stats?.blocks}
+                      </td>
+                      <td className={`text-center px-3 py-3 hidden lg:table-cell ${totalSortBy === 'tov' ? 'text-mc-accent font-bold' : 'text-mc-text'}`}>
+                        {stats?.turnovers}
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
