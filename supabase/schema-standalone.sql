@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
   role VARCHAR(20) NOT NULL DEFAULT 'fan' CHECK (role IN ('player', 'coach', 'admin', 'fan')),
   minecraft_username VARCHAR(50) NOT NULL,
   discord_id VARCHAR(50),
+  discord_roles TEXT[] DEFAULT '{}', -- Array of Discord role IDs synced from MBA server
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

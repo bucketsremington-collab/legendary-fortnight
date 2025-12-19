@@ -86,13 +86,14 @@ const MBA_DISCORD_SERVER_ID = import.meta.env.VITE_MBA_DISCORD_SERVER_ID || '';
 function parseMBARoles(roleIds: string[]): MBARoles {
   const userTeamRoleId = Object.keys(TEAM_ROLE_TO_TEAM_ID).find(roleId => roleIds.includes(roleId)) || null;
   
+  // Check for admin roles (Owner or Developer)
+  const isAdmin = roleIds.includes(MBA_ROLE_IDS.OWNER) || roleIds.includes(MBA_ROLE_IDS.DEVELOPER);
+  
   return {
     isOwner: roleIds.includes(MBA_ROLE_IDS.OWNER),
     isDeveloper: roleIds.includes(MBA_ROLE_IDS.DEVELOPER),
     isModerator: roleIds.includes(MBA_ROLE_IDS.MODERATOR),
-    isStaff: roleIds.includes(MBA_ROLE_IDS.OWNER) || 
-             roleIds.includes(MBA_ROLE_IDS.DEVELOPER) || 
-             roleIds.includes(MBA_ROLE_IDS.MODERATOR),
+    isStaff: isAdmin || roleIds.includes(MBA_ROLE_IDS.MODERATOR),
     isFranchiseOwner: roleIds.includes(MBA_ROLE_IDS.FRANCHISE_OWNER),
     isGeneralManager: roleIds.includes(MBA_ROLE_IDS.GENERAL_MANAGER),
     isHeadCoach: roleIds.includes(MBA_ROLE_IDS.HEAD_COACH),
@@ -314,8 +315,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Sync Discord roles to database (updates team_id and role based on Discord roles)
-  const syncRolesToDatabase = async (): Promise<{ success: boolean; message: string }> => {
+  // Sync Discord roles to database (updates team_id, role, and discord_roles based on Discord roles)
+  const syncRolesToDatabase = async (forceRefresh = true): Promise<{ success: boolean; message: string }> => {
     if (!user) {
       return { success: false, message: 'Not logged in' };
     }
@@ -324,12 +325,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, message: 'Not a member of the MBA Discord server' };
     }
 
-    // Force refresh Discord roles (bypass cache for manual sync)
-    await fetchMBAServerInfo(true);
+    // Force refresh Discord roles (bypass cache for sync)
+    if (forceRefresh) {
+      await fetchMBAServerInfo(true);
+    }
+
+    // Get all Discord role IDs from the member info
+    const allDiscordRoleIds = mbaServerMember?.roles || [];
 
     // Determine updates based on roles
     const updates: Partial<User> = {};
     let changes: string[] = [];
+
+    // Always store ALL Discord role IDs
+    const currentRoles = user.discord_roles || [];
+    const rolesChanged = JSON.stringify(currentRoles.sort()) !== JSON.stringify([...allDiscordRoleIds].sort());
+    if (rolesChanged) {
+      updates.discord_roles = allDiscordRoleIds;
+      changes.push(`Discord roles updated (${allDiscordRoleIds.length} roles)`);
+    }
 
     // Update team_id based on team role
     if (mbaRoles.teamId) {
@@ -359,17 +373,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Update role based on position roles
-    let newRole: User['role'] = user.role;
-    if (mbaRoles.isStaff) {
+    // Logic: Admin if Owner/Developer, otherwise everyone is a Player by default
+    let newRole: User['role'] = 'player'; // Default role is player
+    
+    if (mbaRoles.isOwner || mbaRoles.isDeveloper) {
+      // Only Owner and Developer roles get admin
       newRole = 'admin';
     } else if (mbaRoles.isFranchiseOwner || mbaRoles.isGeneralManager || mbaRoles.isHeadCoach || mbaRoles.isAssistantCoach) {
+      // Franchise Owner, GM, coaches get coach role
       newRole = 'coach';
-    } else if (mbaRoles.teamId || mbaRoles.isFreeAgent) {
-      newRole = 'player';
-    } else {
-      // No team role, no position role, no free agent role = fan
-      newRole = 'fan';
     }
+    // Everyone else stays as 'player' (the default)
 
     if (newRole !== user.role) {
       updates.role = newRole;
@@ -395,18 +409,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Load user from Supabase auth data
-  const loadUserFromSupabaseAuth = async (authUser: SupabaseUser) => {
+  const loadUserFromSupabaseAuth = async (authUser: SupabaseUser, isNewLogin = false) => {
     try {
       // First check localStorage for cached user
       const storedUser = localStorage.getItem('mba_user');
-      if (storedUser) {
+      if (storedUser && !isNewLogin) {
         try {
           const cached = JSON.parse(storedUser);
           // Verify the cached user matches the auth user
           const discordId = authUser.user_metadata?.provider_id || authUser.user_metadata?.sub;
           if (cached.id === `discord-${discordId}`) {
             setUser(cached);
-            return; // Use cached user, don't hit database
+            return false; // Use cached user, don't hit database. Return false = not new user
           }
         } catch {
           // Invalid cached data, continue to fetch
@@ -437,8 +451,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (matchedUser) {
         setUser(matchedUser);
         localStorage.setItem('mba_user', JSON.stringify(matchedUser));
+        return false; // Existing user
       } else {
-        // Create a new user from Discord data
+        // Create a new user from Discord data - default to 'player' role
         const discordUsername = authUser.user_metadata?.full_name || 
                                authUser.user_metadata?.name ||
                                authUser.email?.split('@')[0] ||
@@ -452,8 +467,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           avatar_url: avatarUrl,
           bio: 'New MBA player! Connected via Discord.',
           team_id: null,
-          role: 'fan',
+          role: 'player', // Default role is player (not fan)
           minecraft_username: discordUsername,
+          discord_roles: [], // Will be populated by auto-sync
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -466,6 +482,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createUser(newUser).catch(err => {
           console.warn('Failed to create user in database:', err);
         });
+        
+        return true; // New user - needs role sync
       }
     } catch (error) {
       console.error('Error in loadUserFromSupabaseAuth:', error);
@@ -483,14 +501,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         avatar_url: authUser.user_metadata?.avatar_url || null,
         bio: null,
         team_id: null,
-        role: 'fan',
+        role: 'player', // Default role is player
         minecraft_username: discordUsername,
+        discord_roles: [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
       
       setUser(fallbackUser);
       localStorage.setItem('mba_user', JSON.stringify(fallbackUser));
+      return true; // New user
+    }
+  };
+
+  // Auto-sync roles for new/first-time users
+  const performAutoSync = async () => {
+    // Wait a bit for Discord data to be fetched
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Check if user is in MBA server and has roles to sync
+    if (mbaServerMember && mbaServerMember.roles.length > 0) {
+      console.log('Performing auto role sync for first-time user...');
+      const result = await syncRolesToDatabase(false); // Don't force refresh, we just fetched
+      console.log('Auto sync result:', result);
     }
   };
 
@@ -562,7 +595,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSupabaseUser(newSession?.user || null);
             
             if (newSession?.user) {
-              await loadUserFromSupabaseAuth(newSession.user);
+              // Check if this is a new sign-in (SIGNED_IN event means fresh OAuth)
+              const isNewSignIn = event === 'SIGNED_IN';
+              const isNewUser = await loadUserFromSupabaseAuth(newSession.user, isNewSignIn);
+              
+              // If it's a new user or new sign-in, trigger auto role sync after Discord data loads
+              if (isNewUser || isNewSignIn) {
+                console.log('New sign-in detected, will auto-sync roles...');
+                // Delay to allow Discord data to be fetched first
+                setTimeout(() => {
+                  performAutoSync();
+                }, 2000);
+              }
             } else if (event === 'SIGNED_OUT') {
               setUser(null);
               setMbaRoles(defaultMBARoles);
