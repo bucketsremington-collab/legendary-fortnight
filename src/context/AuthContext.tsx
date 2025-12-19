@@ -120,7 +120,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   register: (username: string, email: string, password: string, minecraftUsername: string) => Promise<boolean>;
   fetchDiscordGuilds: (forceRefresh?: boolean) => Promise<void>;
-  fetchMBAServerInfo: (forceRefresh?: boolean) => Promise<void>;
+  fetchMBAServerInfo: (forceRefresh?: boolean) => Promise<{ memberInfo: DiscordMemberInfo | null; parsedRoles: MBARoles } | null>;
   syncRolesToDatabase: () => Promise<{ success: boolean; message: string }>;
 }
 
@@ -238,15 +238,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Fetch MBA server member info (roles, nickname, etc.) - with caching
-  const fetchMBAServerInfo = async (forceRefresh = false) => {
+  // Returns the member info and parsed roles for immediate use
+  const fetchMBAServerInfo = async (forceRefresh = false): Promise<{ memberInfo: DiscordMemberInfo | null; parsedRoles: MBARoles } | null> => {
     if (!session?.provider_token) {
       console.log('No provider token available');
-      return;
+      return null;
     }
 
     if (!MBA_DISCORD_SERVER_ID) {
       console.log('MBA Discord server ID not configured');
-      return;
+      return null;
     }
 
     // Check cache first (unless force refresh)
@@ -258,7 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cached.roles) {
           setMbaRoles(cached.roles);
         }
-        return;
+        return { memberInfo: cached.memberInfo, parsedRoles: cached.roles || defaultMBARoles };
       }
     }
 
@@ -293,11 +294,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCachedDiscordData(discordGuilds, memberInfo, parsedRoles);
         
         console.log('MBA Server member info:', memberData);
+        console.log('Raw Discord role IDs:', roles);
         console.log('Parsed MBA roles:', parsedRoles);
+        
+        return { memberInfo, parsedRoles };
       } else if (memberResponse.status === 404) {
         console.log('User is not a member of the MBA Discord server');
         setMbaServerMember(null);
         setMbaRoles(defaultMBARoles);
+        return { memberInfo: null, parsedRoles: defaultMBARoles };
       } else if (memberResponse.status === 429) {
         console.warn('Rate limited by Discord API for member info, using cached data');
         const cached = getCachedDiscordData();
@@ -306,6 +311,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (cached.roles) {
             setMbaRoles(cached.roles);
           }
+          return { memberInfo: cached.memberInfo, parsedRoles: cached.roles || defaultMBARoles };
         }
       } else {
         console.error('Failed to fetch member info:', memberResponse.status);
@@ -313,6 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error fetching MBA server info:', error);
     }
+    return null;
   };
 
   // Sync Discord roles to database (updates team_id, role, and discord_roles based on Discord roles)
@@ -325,13 +332,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, message: 'Not a member of the MBA Discord server' };
     }
 
-    // Force refresh Discord roles (bypass cache for sync)
+    // Force refresh Discord roles and get the fresh data immediately
+    let freshMemberInfo: DiscordMemberInfo | null = mbaServerMember;
+    let freshParsedRoles: MBARoles = mbaRoles;
+    
     if (forceRefresh) {
-      await fetchMBAServerInfo(true);
+      const result = await fetchMBAServerInfo(true);
+      if (result) {
+        freshMemberInfo = result.memberInfo;
+        freshParsedRoles = result.parsedRoles;
+      }
     }
 
-    // Get all Discord role IDs from the member info
-    const allDiscordRoleIds = mbaServerMember?.roles || [];
+    // Get all Discord role IDs from the FRESH member info
+    const allDiscordRoleIds = freshMemberInfo?.roles || [];
+    
+    console.log('Syncing roles - All Discord role IDs:', allDiscordRoleIds);
+    console.log('Syncing roles - Parsed roles:', freshParsedRoles);
 
     // Determine updates based on roles
     const updates: Partial<User> = {};
@@ -346,20 +363,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Update team_id based on team role
-    if (mbaRoles.teamId) {
+    if (freshParsedRoles.teamId) {
       // User has a team role - update team if different
-      if (user.team_id !== mbaRoles.teamId) {
+      if (user.team_id !== freshParsedRoles.teamId) {
         // Verify the team exists in the database before assigning
-        const teamExists = await fetchTeamById(mbaRoles.teamId);
+        const teamExists = await fetchTeamById(freshParsedRoles.teamId);
         if (teamExists) {
-          updates.team_id = mbaRoles.teamId;
+          updates.team_id = freshParsedRoles.teamId;
           changes.push(`Team updated to ${teamExists.name}`);
         } else {
-          console.warn(`Team ${mbaRoles.teamId} not found in database`);
+          console.warn(`Team ${freshParsedRoles.teamId} not found in database`);
           return { success: false, message: `Team not found in database. Contact an admin.` };
         }
       }
-    } else if (mbaRoles.isFreeAgent) {
+    } else if (freshParsedRoles.isFreeAgent) {
       // User has the Free Agent role - remove from team
       if (user.team_id !== null) {
         updates.team_id = null;
@@ -376,10 +393,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Logic: Admin if Owner/Developer, otherwise everyone is a Player by default
     let newRole: User['role'] = 'player'; // Default role is player
     
-    if (mbaRoles.isOwner || mbaRoles.isDeveloper) {
+    if (freshParsedRoles.isOwner || freshParsedRoles.isDeveloper) {
       // Only Owner and Developer roles get admin
       newRole = 'admin';
-    } else if (mbaRoles.isFranchiseOwner || mbaRoles.isGeneralManager || mbaRoles.isHeadCoach || mbaRoles.isAssistantCoach) {
+    } else if (freshParsedRoles.isFranchiseOwner || freshParsedRoles.isGeneralManager || freshParsedRoles.isHeadCoach || freshParsedRoles.isAssistantCoach) {
       // Franchise Owner, GM, coaches get coach role
       newRole = 'coach';
     }
