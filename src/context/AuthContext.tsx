@@ -573,10 +573,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Then check for Supabase session in background
         if (isSupabaseConfigured() && supabase) {
+          console.log('Checking for Supabase session...');
           const { data: { session: currentSession }, error } = await supabase.auth.getSession();
           
           if (error) {
             console.error('Error getting session:', error);
+            setIsLoading(false);
+            return;
           }
           
           if (currentSession && isMounted) {
@@ -589,10 +592,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setIsLoading(false); // Done loading
           } else if (!currentSession && !storedUser) {
             // No session and no cache - user is not logged in
+            console.log('No session found, not logged in');
+            setIsLoading(false);
+          } else if (!currentSession && storedUser) {
+            // Have cache but no session - session expired
+            console.log('Session expired, using cached user');
             setIsLoading(false);
           }
         } else if (!storedUser) {
           // No supabase and no cache
+          console.log('No Supabase configured');
           setIsLoading(false);
         }
       } catch (error) {
