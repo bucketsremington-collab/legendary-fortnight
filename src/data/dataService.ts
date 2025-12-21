@@ -25,8 +25,10 @@ interface CacheEntry<T> {
 }
 
 const cache = new Map<string, CacheEntry<any>>();
-const CACHE_TTL = 60000; // 1 minute cache
+const CACHE_TTL = 120000; // 2 minute cache (increased from 1 min)
 const pendingRequests = new Map<string, Promise<any>>();
+const failureCounts = new Map<string, number>();
+const lastRequestTime = new Map<string, number>();
 
 function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
@@ -45,8 +47,34 @@ function setCache<T>(key: string, data: T): void {
   cache.set(key, { data, timestamp: Date.now() });
 }
 
-// Deduplicate concurrent requests to the same endpoint
-async function dedupedRequest<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+// Exponential backoff with jitter
+async function exponentialBackoff(attempt: number): Promise<void> {
+  const baseDelay = 1000; // 1 second
+  const maxDelay = 30000; // 30 seconds max
+  const jitter = Math.random() * 1000; // Random jitter up to 1 second
+  const delay = Math.min(baseDelay * Math.pow(2, attempt) + jitter, maxDelay);
+  
+  console.log(`Backing off for ${Math.round(delay)}ms (attempt ${attempt + 1})`);
+  await new Promise(resolve => setTimeout(resolve, delay));
+}
+
+// Request throttling - ensure minimum time between requests
+async function throttleRequest(key: string): Promise<void> {
+  const MIN_REQUEST_INTERVAL = 100; // 100ms between requests to same endpoint
+  const lastTime = lastRequestTime.get(key);
+  
+  if (lastTime) {
+    const timeSinceLastRequest = Date.now() - lastTime;
+    if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
+      await new Promise(resolve => setTimeout(resolve, MIN_REQUEST_INTERVAL - timeSinceLastRequest));
+    }
+  }
+  
+  lastRequestTime.set(key, Date.now());
+}
+
+// Deduplicate concurrent requests with exponential backoff retry
+async function dedupedRequest<T>(key: string, fetcher: () => Promise<T>, maxRetries = 3): Promise<T> {
   // Check cache first
   const cached = getCached<T>(key);
   if (cached !== null) {
@@ -59,15 +87,45 @@ async function dedupedRequest<T>(key: string, fetcher: () => Promise<T>): Promis
     return pending as Promise<T>;
   }
   
-  // Make new request
-  const promise = fetcher().then(data => {
-    setCache(key, data);
+  // Throttle request
+  await throttleRequest(key);
+  
+  // Make new request with retry logic
+  const promise = (async () => {
+    let lastError: any;
+    const failures = failureCounts.get(key) || 0;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // If we've had failures before, apply backoff
+        if (failures > 0 && attempt === 0) {
+          await exponentialBackoff(failures - 1);
+        } else if (attempt > 0) {
+          await exponentialBackoff(attempt - 1);
+        }
+        
+        const data = await fetcher();
+        setCache(key, data);
+        failureCounts.delete(key); // Reset failure count on success
+        pendingRequests.delete(key);
+        return data;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`Request failed for ${key} (attempt ${attempt + 1}/${maxRetries + 1}):`, err.message);
+        
+        // Don't retry on certain errors (404, 403, etc)
+        if (err.code === 'PGRST116' || err.status === 404 || err.status === 403) {
+          break;
+        }
+      }
+    }
+    
+    // All retries failed
+    failureCounts.set(key, (failureCounts.get(key) || 0) + 1);
     pendingRequests.delete(key);
-    return data;
-  }).catch(err => {
-    pendingRequests.delete(key);
-    throw err;
-  });
+    throw lastError || new Error('Request failed after retries');
+  })();
+
   
   pendingRequests.set(key, promise);
   return promise;
