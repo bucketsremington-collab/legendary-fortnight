@@ -560,12 +560,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const cached = JSON.parse(storedUser);
             setUser(cached);
             console.log('Loaded cached user:', cached.username);
+            // Set loading to false immediately - we have data to show
+            setIsLoading(false);
           } catch {
             localStorage.removeItem('mba_user');
           }
         }
 
-        // Then check for Supabase session
+        // Then check for Supabase session in background
         if (isSupabaseConfigured() && supabase) {
           const { data: { session: currentSession }, error } = await supabase.auth.getSession();
           
@@ -578,16 +580,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSession(currentSession);
             setSupabaseUser(currentSession.user);
             
-            // Load user data (this uses cache first)
+            // Load fresh user data from database (updates in background)
             await loadUserFromSupabaseAuth(currentSession.user);
+          } else if (!currentSession && !storedUser) {
+            // No session and no cache - user is not logged in
+            setIsLoading(false);
           }
+        } else if (!storedUser) {
+          // No supabase and no cache
+          setIsLoading(false);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
 
@@ -613,18 +618,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setSupabaseUser(newSession?.user || null);
             
             if (newSession?.user) {
-              // Check if this is a new sign-in (SIGNED_IN event means fresh OAuth)
-              const isNewSignIn = event === 'SIGNED_IN';
-              const isNewUser = await loadUserFromSupabaseAuth(newSession.user, isNewSignIn);
-              
-              // If it's a new user or new sign-in, trigger auto role sync after Discord data loads
-              if (isNewUser || isNewSignIn) {
-                console.log('New sign-in detected, will auto-sync roles...');
-                // Delay to allow Discord data to be fetched first
-                setTimeout(() => {
-                  performAutoSync();
-                }, 2000);
+              // Only reload user on actual new sign-in, not on initial page load
+              if (event === 'SIGNED_IN') {
+                const isNewUser = await loadUserFromSupabaseAuth(newSession.user, true);
+                
+                // If it's a new user, trigger auto role sync after Discord data loads
+                if (isNewUser) {
+                  console.log('New sign-in detected, will auto-sync roles...');
+                  // Delay to allow Discord data to be fetched first
+                  setTimeout(() => {
+                    performAutoSync();
+                  }, 2000);
+                }
               }
+              // INITIAL_SESSION and TOKEN_REFRESHED are ignored - we use cached data
             } else if (event === 'SIGNED_OUT') {
               setUser(null);
               setMbaRoles(defaultMBARoles);
