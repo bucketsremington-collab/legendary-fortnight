@@ -564,7 +564,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
           } catch {
             localStorage.removeItem('mba_user');
+            setIsLoading(true); // Need to load from database
           }
+        } else {
+          // No cached user - need to fetch from database
+          setIsLoading(true);
         }
 
         // Then check for Supabase session in background
@@ -582,6 +586,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             // Load fresh user data from database (updates in background)
             await loadUserFromSupabaseAuth(currentSession.user);
+            setIsLoading(false); // Done loading
           } else if (!currentSession && !storedUser) {
             // No session and no cache - user is not logged in
             setIsLoading(false);
