@@ -548,6 +548,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize auth state
   useEffect(() => {
     let isMounted = true;
+    let isInitializing = true; // Flag to prevent SIGNED_IN from triggering during init
     
     const initAuth = async () => {
       console.log('Initializing auth...');
@@ -579,6 +580,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (error) {
             console.error('Error getting session:', error);
             setIsLoading(false);
+            isInitializing = false;
             return;
           }
           
@@ -607,6 +609,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.error('Auth initialization error:', error);
         setIsLoading(false);
+      } finally {
+        // Mark initialization as complete
+        isInitializing = false;
       }
     };
 
@@ -618,6 +623,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data } = supabase.auth.onAuthStateChange(
         async (event, newSession) => {
           console.log('Auth state changed:', event);
+          
+          // Ignore events during initialization to prevent double-loading
+          if (isInitializing) {
+            console.log('Ignoring event during initialization:', event);
+            return;
+          }
           
           if (isMounted) {
             setSession(newSession);
