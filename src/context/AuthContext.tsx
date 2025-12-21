@@ -554,16 +554,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('Initializing auth...');
       
       try {
+        // Check for cache version and clear old/corrupted cache
+        const CACHE_VERSION = '1.0';
+        const cacheVersion = localStorage.getItem('mba_cache_version');
+        
+        if (cacheVersion !== CACHE_VERSION) {
+          console.log('Cache version mismatch, clearing old cache');
+          localStorage.removeItem('mba_user');
+          localStorage.removeItem('mba_home_data');
+          localStorage.setItem('mba_cache_version', CACHE_VERSION);
+        }
+        
         // First, check localStorage for cached user (instant)
         const storedUser = localStorage.getItem('mba_user');
         if (storedUser && isMounted) {
           try {
             const cached = JSON.parse(storedUser);
-            setUser(cached);
-            console.log('Loaded cached user:', cached.username);
-            // Set loading to false immediately - we have data to show
-            setIsLoading(false);
-          } catch {
+            
+            // Validate cached data structure
+            if (!cached.id || !cached.username) {
+              console.warn('Invalid cached user data, clearing cache');
+              localStorage.removeItem('mba_user');
+              setIsLoading(true);
+            } else {
+              setUser(cached);
+              console.log('Loaded cached user:', cached.username);
+              // Set loading to false immediately - we have data to show
+              setIsLoading(false);
+            }
+          } catch (err) {
+            console.error('Failed to parse cached user:', err);
             localStorage.removeItem('mba_user');
             setIsLoading(true); // Need to load from database
           }
@@ -590,6 +610,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             if (error) {
               console.error('Error getting session:', error);
+              
+              // If session validation fails with specific errors, clear corrupted cache
+              if (error.message?.includes('invalid') || error.message?.includes('expired')) {
+                console.warn('Invalid/expired session detected, clearing cache');
+                localStorage.removeItem('mba_user');
+                localStorage.removeItem('mba_home_data');
+                await supabase?.auth.signOut();
+              }
+              
               setIsLoading(false);
               isInitializing = false;
               return;
@@ -608,8 +637,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               console.log('No session found, not logged in');
               setIsLoading(false);
             } else if (!currentSession && storedUser) {
-              // Have cache but no session - session expired
-              console.log('Session expired, using cached user');
+              // Have cache but no session - session may have expired
+              console.log('Session expired, clearing old cache');
+              localStorage.removeItem('mba_user');
+              setUser(null);
               setIsLoading(false);
             }
           } catch (err) {
