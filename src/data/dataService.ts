@@ -56,6 +56,26 @@ export async function fetchTeamById(id: string): Promise<Team | null> {
   return data;
 }
 
+export async function fetchTeamByRoleId(roleId: string): Promise<Team | null> {
+  if (!isSupabaseConfigured()) {
+    // In mock mode, can't look up by role ID
+    return null;
+  }
+
+  const { data, error } = await supabase!
+    .from('teams')
+    .select('*')
+    .eq('team_role_id', roleId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching team by role ID:', error);
+    return null;
+  }
+
+  return data;
+}
+
 export async function updateTeam(id: string, updates: Partial<Team>): Promise<boolean> {
   if (!isSupabaseConfigured()) {
     console.log('Demo mode: Team update not saved to database');

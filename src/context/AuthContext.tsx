@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
-import { fetchUsers, createUser, updateUser, fetchTeamById } from '../data/dataService';
+import { fetchUsers, createUser, updateUser, fetchTeamById, fetchTeamByRoleId } from '../data/dataService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -363,18 +363,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Update team_id based on team role
-    if (freshParsedRoles.teamId) {
-      // User has a team role - update team if different
-      if (user.team_id !== freshParsedRoles.teamId) {
-        // Verify the team exists in the database before assigning
-        const teamExists = await fetchTeamById(freshParsedRoles.teamId);
-        if (teamExists) {
-          updates.team_id = freshParsedRoles.teamId;
-          changes.push(`Team updated to ${teamExists.name}`);
-        } else {
-          console.warn(`Team ${freshParsedRoles.teamId} not found in database`);
-          return { success: false, message: `Team not found in database. Contact an admin.` };
+    if (freshParsedRoles.teamRoleId) {
+      // User has a team role - look up the team by role ID in database
+      const teamFromRole = await fetchTeamByRoleId(freshParsedRoles.teamRoleId);
+      if (teamFromRole) {
+        // Update team if different
+        if (user.team_id !== teamFromRole.id) {
+          updates.team_id = teamFromRole.id;
+          changes.push(`Team updated to ${teamFromRole.name || teamFromRole.team_name}`);
         }
+      } else {
+        console.warn(`Team with role ID ${freshParsedRoles.teamRoleId} not found in database`);
+        return { success: false, message: `Team not linked in database. Ask an admin to use /linkteam.` };
       }
     } else if (freshParsedRoles.isFreeAgent) {
       // User has the Free Agent role - remove from team

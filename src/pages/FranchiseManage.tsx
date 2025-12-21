@@ -29,14 +29,29 @@ function TeamLogo({ team, size = 40 }: { team: Team, size?: number }) {
 }
 
 export default function FranchiseManage() {
-  const { user, mbaRoles } = useAuth();
+  const { user, mbaRoles, syncRolesToDatabase } = useAuth();
   const [team, setTeam] = useState<Team | null>(null);
   const [roster, setRoster] = useState<User[]>([]);
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     async function loadTeamData() {
+      // If user has a team role but no team_id, try to sync
+      if (!user?.team_id && mbaRoles.teamRoleId && !syncing) {
+        console.log('User has team role but no team_id, attempting sync...');
+        setSyncing(true);
+        try {
+          await syncRolesToDatabase();
+        } catch (err) {
+          console.error('Auto-sync failed:', err);
+        } finally {
+          setSyncing(false);
+        }
+        return;
+      }
+      
       if (!user?.team_id) {
         setLoading(false);
         return;
@@ -60,7 +75,7 @@ export default function FranchiseManage() {
     }
 
     loadTeamData();
-  }, [user?.team_id]);
+  }, [user?.team_id, mbaRoles.teamRoleId, syncing]);
 
   // Check if user has franchise owner permissions
   if (!mbaRoles.isFranchiseOwner) {
@@ -80,10 +95,12 @@ export default function FranchiseManage() {
     );
   }
 
-  if (loading) {
+  if (loading || syncing) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-mc-text-muted">Loading franchise data...</div>
+        <div className="text-mc-text-muted">
+          {syncing ? 'Syncing your team assignment...' : 'Loading franchise data...'}
+        </div>
       </div>
     );
   }
@@ -95,7 +112,9 @@ export default function FranchiseManage() {
           <div className="text-6xl mb-4">⚠️</div>
           <h1 className="text-2xl font-bold text-mc-text mb-2">No Team Found</h1>
           <p className="text-mc-text-muted mb-4">
-            You don't appear to be assigned to a team. Please contact an administrator.
+            {mbaRoles.teamRoleId 
+              ? "Team not linked in database. Please ask an admin to link your team using /linkteam in Discord."
+              : "You don't appear to have a team role in Discord. Please contact an administrator."}
           </p>
           <Link to="/home" className="text-mc-accent hover:underline">
             Return to Home

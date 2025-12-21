@@ -25,6 +25,7 @@ export interface Team {
   description: string | null;
   founded_date: string;
   home_arena: string | null;
+  conference: 'Plains' | 'Desert';
   wins: number;
   losses: number;
   championships: number;
