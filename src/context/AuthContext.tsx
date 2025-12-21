@@ -575,29 +575,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Then check for Supabase session in background
         if (isSupabaseConfigured() && supabase) {
           console.log('Checking for Supabase session...');
-          const { data: { session: currentSession }, error } = await supabase.auth.getSession();
           
-          if (error) {
-            console.error('Error getting session:', error);
+          try {
+            // Add timeout to prevent hanging
+            const sessionPromise = supabase.auth.getSession();
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Session check timeout')), 3000)
+            );
+            
+            const { data: { session: currentSession }, error } = await Promise.race([
+              sessionPromise,
+              timeoutPromise
+            ]) as any;
+            
+            if (error) {
+              console.error('Error getting session:', error);
+              setIsLoading(false);
+              isInitializing = false;
+              return;
+            }
+            
+            if (currentSession && isMounted) {
+              console.log('Found Supabase session');
+              setSession(currentSession);
+              setSupabaseUser(currentSession.user);
+              
+              // Load fresh user data from database (updates in background)
+              await loadUserFromSupabaseAuth(currentSession.user);
+              setIsLoading(false); // Done loading
+            } else if (!currentSession && !storedUser) {
+              // No session and no cache - user is not logged in
+              console.log('No session found, not logged in');
+              setIsLoading(false);
+            } else if (!currentSession && storedUser) {
+              // Have cache but no session - session expired
+              console.log('Session expired, using cached user');
+              setIsLoading(false);
+            }
+          } catch (err) {
+            console.warn('Session check failed or timed out:', err);
+            // If we have cached user, continue using it
+            if (storedUser) {
+              console.log('Using cached user after session check failure');
+            }
             setIsLoading(false);
             isInitializing = false;
-            return;
           }
-          
-          if (currentSession && isMounted) {
-            console.log('Found Supabase session');
-            setSession(currentSession);
-            setSupabaseUser(currentSession.user);
-            
-            // Load fresh user data from database (updates in background)
-            await loadUserFromSupabaseAuth(currentSession.user);
-            setIsLoading(false); // Done loading
-          } else if (!currentSession && !storedUser) {
-            // No session and no cache - user is not logged in
-            console.log('No session found, not logged in');
-            setIsLoading(false);
-          } else if (!currentSession && storedUser) {
-            // Have cache but no session - session expired
             console.log('Session expired, using cached user');
             setIsLoading(false);
           }
