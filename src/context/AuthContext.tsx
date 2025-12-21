@@ -444,26 +444,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Fetch users from database with timeout
-      const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 5000)
-      );
-      
-      let users: User[] = [];
-      try {
-        users = await Promise.race([fetchUsers(), timeoutPromise]) as User[];
-      } catch (e) {
-        console.warn('Failed to fetch users, creating new user:', e);
-      }
-      
-      // Look for a user that matches by Discord ID or email
+      // Get Discord ID first
       const discordId = authUser.user_metadata?.provider_id || authUser.user_metadata?.sub;
-      const email = authUser.email;
+      const expectedUserId = `discord-${discordId}`;
       
-      let matchedUser = users.find(u => 
-        (u.id === `discord-${discordId}`) ||
-        (email && u.username.toLowerCase() === email.toLowerCase())
-      );
+      // Check if user exists in database by their specific ID (fast query)
+      let matchedUser: User | null = null;
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', expectedUserId)
+            .maybeSingle();
+          
+          if (!error && data) {
+            matchedUser = data as User;
+          }
+        } catch (e) {
+          console.warn('Failed to fetch user from database:', e);
+        }
+      }
 
       if (matchedUser) {
         setUser(matchedUser);

@@ -222,7 +222,7 @@ export async function createUser(user: Omit<User, 'created_at' | 'updated_at'>):
 
   const { data, error } = await supabase!
     .from('users')
-    .insert(user)
+    .upsert(user, { onConflict: 'id' })
     .select()
     .single();
 
