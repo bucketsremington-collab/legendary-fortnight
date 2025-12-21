@@ -70,6 +70,26 @@ export default function Home() {
   useEffect(() => {
     async function loadData() {
       setLoading(true);
+      
+      // Try to load from cache first
+      try {
+        const cached = localStorage.getItem('mba_home_data');
+        if (cached) {
+          const { news: cachedNews, games: cachedGames, timestamp } = JSON.parse(cached);
+          const age = Date.now() - timestamp;
+          // Use cache if less than 2 minutes old
+          if (age < 120000) {
+            console.log('Using cached home data');
+            setNews(cachedNews);
+            setGames(cachedGames);
+            setLoading(false);
+            return; // Don't fetch fresh data
+          }
+        }
+      } catch {
+        // Invalid cache, continue to fetch
+      }
+      
       try {
         // Add timeout to prevent infinite loading
         const timeout = new Promise((_, reject) => 
@@ -94,6 +114,13 @@ export default function Home() {
         setFreeAgentListings(freeAgentsData);
         setUsers(usersData);
         setTeams(teamsData);
+        
+        // Cache news and games
+        localStorage.setItem('mba_home_data', JSON.stringify({
+          news: newsData,
+          games: gamesData,
+          timestamp: Date.now()
+        }));
 
         // Pre-fetch users for free agent listings (with timeout)
         const faUsers = new Map<string, User>();
@@ -112,9 +139,23 @@ export default function Home() {
         setFreeAgentUsers(faUsers);
       } catch (err) {
         console.error('Error loading home data:', err);
-        // Set empty data instead of staying in loading state
-        setNews([]);
-        setGames([]);
+        // Try to use cached data even if expired
+        try {
+          const cached = localStorage.getItem('mba_home_data');
+          if (cached) {
+            const { news: cachedNews, games: cachedGames } = JSON.parse(cached);
+            console.log('Using expired cache due to fetch failure');
+            setNews(cachedNews);
+            setGames(cachedGames);
+          } else {
+            // Set empty data instead of staying in loading state
+            setNews([]);
+            setGames([]);
+          }
+        } catch {
+          setNews([]);
+          setGames([]);
+        }
         setFreeAgentListings([]);
         setUsers([]);
         setTeams([]);
