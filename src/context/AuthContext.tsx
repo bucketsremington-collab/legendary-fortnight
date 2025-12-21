@@ -621,9 +621,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
             isInitializing = false;
           }
-            console.log('Session expired, using cached user');
-            setIsLoading(false);
-          }
         } else if (!storedUser) {
           // No supabase and no cache
           console.log('No Supabase configured');
