@@ -17,24 +17,83 @@ import {
 export type { NewsItem, FreeAgentListing };
 
 // ============================================
+// IN-MEMORY CACHE TO PREVENT RATE LIMITING
+// ============================================
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const cache = new Map<string, CacheEntry<any>>();
+const CACHE_TTL = 60000; // 1 minute cache
+const pendingRequests = new Map<string, Promise<any>>();
+
+function getCached<T>(key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  
+  const age = Date.now() - entry.timestamp;
+  if (age > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+  
+  return entry.data as T;
+}
+
+function setCache<T>(key: string, data: T): void {
+  cache.set(key, { data, timestamp: Date.now() });
+}
+
+// Deduplicate concurrent requests to the same endpoint
+async function dedupedRequest<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  // Check cache first
+  const cached = getCached<T>(key);
+  if (cached !== null) {
+    return cached;
+  }
+  
+  // Check if request is already in flight
+  const pending = pendingRequests.get(key);
+  if (pending) {
+    return pending as Promise<T>;
+  }
+  
+  // Make new request
+  const promise = fetcher().then(data => {
+    setCache(key, data);
+    pendingRequests.delete(key);
+    return data;
+  }).catch(err => {
+    pendingRequests.delete(key);
+    throw err;
+  });
+  
+  pendingRequests.set(key, promise);
+  return promise;
+}
+
+// ============================================
 // TEAMS
 // ============================================
 export async function fetchTeams(): Promise<Team[]> {
-  if (!isSupabaseConfigured()) {
-    return mockTeams;
-  }
+  return dedupedRequest('teams', async () => {
+    if (!isSupabaseConfigured()) {
+      return mockTeams;
+    }
 
-  const { data, error } = await supabase!
-    .from('teams')
-    .select('*')
-    .order('wins', { ascending: false });
+    const { data, error } = await supabase!
+      .from('teams')
+      .select('*')
+      .order('wins', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching teams:', error);
-    return mockTeams;
-  }
+    if (error) {
+      console.error('Error fetching teams:', error);
+      return mockTeams;
+    }
 
-  return data || mockTeams;
+    return data || mockTeams;
+  });
 }
 
 export async function fetchTeamById(id: string): Promise<Team | null> {
@@ -123,20 +182,22 @@ export async function resetAllTeamsToDefaults(): Promise<boolean> {
 // USERS
 // ============================================
 export async function fetchUsers(): Promise<User[]> {
-  if (!isSupabaseConfigured()) {
-    return mockUsers;
-  }
+  return dedupedRequest('users', async () => {
+    if (!isSupabaseConfigured()) {
+      return mockUsers;
+    }
 
-  const { data, error } = await supabase!
-    .from('users')
-    .select('*');
+    const { data, error } = await supabase!
+      .from('users')
+      .select('*');
 
-  if (error) {
-    console.error('Error fetching users:', error);
-    return mockUsers;
-  }
+    if (error) {
+      console.error('Error fetching users:', error);
+      return mockUsers;
+    }
 
-  return data || mockUsers;
+    return data || mockUsers;
+  });
 }
 
 export async function fetchUserById(id: string): Promise<User | null> {
@@ -400,21 +461,23 @@ export async function upsertPlayerStats(stats: Omit<PlayerStats, 'id' | 'created
 // GAMES
 // ============================================
 export async function fetchGames(): Promise<Game[]> {
-  if (!isSupabaseConfigured()) {
-    return mockGames;
-  }
+  return dedupedRequest('games', async () => {
+    if (!isSupabaseConfigured()) {
+      return mockGames;
+    }
 
-  const { data, error } = await supabase!
-    .from('games')
-    .select('*')
-    .order('scheduled_date', { ascending: false });
+    const { data, error } = await supabase!
+      .from('games')
+      .select('*')
+      .order('scheduled_date', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching games:', error);
-    return mockGames;
-  }
+    if (error) {
+      console.error('Error fetching games:', error);
+      return mockGames;
+    }
 
-  return data || mockGames;
+    return data || mockGames;
+  });
 }
 
 export async function fetchGamesByTeamId(teamId: string): Promise<Game[]> {
@@ -492,30 +555,32 @@ export async function fetchFreeAgentListings(): Promise<FreeAgentListing[]> {
 // NEWS
 // ============================================
 export async function fetchNews(): Promise<NewsItem[]> {
-  if (!isSupabaseConfigured()) {
-    return mockNews;
-  }
+  return dedupedRequest('news', async () => {
+    if (!isSupabaseConfigured()) {
+      return mockNews;
+    }
 
-  const { data, error } = await supabase!
-    .from('news')
-    .select('*')
-    .order('created_at', { ascending: false });
+    const { data, error } = await supabase!
+      .from('news')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching news:', error);
-    return mockNews;
-  }
+    if (error) {
+      console.error('Error fetching news:', error);
+      return mockNews;
+    }
 
-  // Map database fields to our interface
-  return (data || []).map(news => ({
-    id: news.id,
-    title: news.title,
-    content: news.content,
-    category: news.tags?.[0] || 'announcement',
-    author: 'MBA Official',
-    created_at: news.created_at,
-    is_pinned: news.is_pinned,
-  }));
+    // Map database fields to our interface
+    return (data || []).map(news => ({
+      id: news.id,
+      title: news.title,
+      content: news.content,
+      category: news.tags?.[0] || 'announcement',
+      author: 'MBA Official',
+      created_at: news.created_at,
+      is_pinned: news.is_pinned,
+    }));
+  });
 }
 
 // ============================================
