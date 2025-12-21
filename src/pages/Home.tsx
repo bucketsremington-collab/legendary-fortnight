@@ -71,28 +71,53 @@ export default function Home() {
     async function loadData() {
       setLoading(true);
       try {
-        const [newsData, gamesData, freeAgentsData, usersData, teamsData] = await Promise.all([
+        // Add timeout to prevent infinite loading
+        const timeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Data fetch timeout')), 5000)
+        );
+        
+        const dataPromise = Promise.all([
           fetchNews(),
           fetchGames(),
           fetchFreeAgentListings(),
           fetchUsers(),
           fetchTeams(),
         ]);
+        
+        const [newsData, gamesData, freeAgentsData, usersData, teamsData] = await Promise.race([
+          dataPromise,
+          timeout
+        ]) as any;
+        
         setNews(newsData);
         setGames(gamesData);
         setFreeAgentListings(freeAgentsData);
         setUsers(usersData);
         setTeams(teamsData);
 
-        // Pre-fetch users for free agent listings
+        // Pre-fetch users for free agent listings (with timeout)
         const faUsers = new Map<string, User>();
         for (const listing of freeAgentsData) {
-          const user = await fetchUserById(listing.user_id);
-          if (user) faUsers.set(listing.user_id, user);
+          try {
+            const userPromise = fetchUserById(listing.user_id);
+            const user = await Promise.race([
+              userPromise,
+              new Promise((_, reject) => setTimeout(() => reject(new Error('User fetch timeout')), 2000))
+            ]) as User;
+            if (user) faUsers.set(listing.user_id, user);
+          } catch {
+            // Skip if user fetch fails
+          }
         }
         setFreeAgentUsers(faUsers);
       } catch (err) {
         console.error('Error loading home data:', err);
+        // Set empty data instead of staying in loading state
+        setNews([]);
+        setGames([]);
+        setFreeAgentListings([]);
+        setUsers([]);
+        setTeams([]);
       } finally {
         setLoading(false);
       }
