@@ -50,7 +50,7 @@ export function Leaderboard() {
         <div className="text-gray-400 text-center py-8">No stats recorded yet</div>
       ) : (
         <div className="space-y-2">
-          {leaders.map((leader, index) => (
+          {leaders.map((leader: any, index: number) => (
             <div
               key={`${leader.discord_id}-${leader.rank}`}
               className={`flex items-center justify-between p-3 rounded-lg ${

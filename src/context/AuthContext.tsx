@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
-import { fetchUsers, createUser, updateUser, fetchTeamById, fetchTeamByRoleId } from '../data/dataService';
+import { fetchUsers, createUser, updateUser, fetchTeamByRoleId } from '../data/dataService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -370,7 +370,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Update team if different
         if (user.team_id !== teamFromRole.id) {
           updates.team_id = teamFromRole.id;
-          changes.push(`Team updated to ${teamFromRole.name || teamFromRole.team_name}`);
+          changes.push(`Team updated to ${teamFromRole.name || (teamFromRole as any).team_name}`);
         }
       } else {
         console.warn(`Team with role ID ${freshParsedRoles.teamRoleId} not found in database`);

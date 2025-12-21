@@ -1,0 +1,9 @@
+MBABot/
+MBABotNEW/
+*.py
+__pycache__/
+*.pyc
+.env
+requirements.txt
+runtime.txt
+Procfile
