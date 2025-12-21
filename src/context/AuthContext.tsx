@@ -596,14 +596,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Set a shorter timeout to prevent infinite loading
-    const timeout = setTimeout(() => {
-      if (isMounted) {
-        console.log('Auth timeout reached, setting loading to false');
-        setIsLoading(false);
-      }
-    }, 3000);
-
     initAuth();
 
     // Set up auth state listener
@@ -647,7 +639,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     return () => {
       isMounted = false;
-      clearTimeout(timeout);
       if (subscription) {
         subscription.unsubscribe();
       }
