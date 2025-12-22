@@ -68,6 +68,16 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [lastLoadTime, setLastLoadTime] = useState<number>(0);
 
+  // Auto reload page every 2 minutes
+  useEffect(() => {
+    const reloadInterval = setInterval(() => {
+      console.log('Auto-reloading page to keep session fresh...');
+      window.location.reload();
+    }, 2 * 60 * 1000); // 2 minutes
+
+    return () => clearInterval(reloadInterval);
+  }, []);
+
   useEffect(() => {
     async function loadData() {
       setLoading(true);
