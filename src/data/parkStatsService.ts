@@ -62,10 +62,22 @@ const PARK_STATS_API = import.meta.env.VITE_PARK_STATS_API || '/api/park-stats';
 export async function fetchParkStatsByUUID(uuid: string, season: number = 1): Promise<ParkGameStats | null> {
   try {
     const response = await fetch(`${PARK_STATS_API}/${uuid}?season=${season}`);
+    
     if (!response.ok) {
+      if (response.status === 404) {
+        console.log('Player not found in park stats database');
+        return null;
+      }
       console.error('Failed to fetch park stats:', response.statusText);
       return null;
     }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.warn('Park stats Edge Function not deployed yet. Deploy via Supabase Dashboard.');
+      return null;
+    }
+    
     return await response.json();
   } catch (error) {
     console.error('Error fetching park stats:', error);
