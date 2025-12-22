@@ -28,10 +28,10 @@ serve(async (req) => {
       port: 3306,
     })
 
-    // Query player stats
+    // Query player stats from the players table
     const result = await client.execute(
-      `SELECT * FROM player_stats WHERE player_uuid = ? AND season = ?`,
-      [playerUUID, parseInt(season)]
+      `SELECT * FROM players WHERE uuid = ?`,
+      [playerUUID]
     )
 
     await client.close()
@@ -49,8 +49,8 @@ serve(async (req) => {
     // Map database columns to response format
     const row = result.rows[0]
     const stats = {
-      player_uuid: row.player_uuid,
-      player_name: row.player_name,
+      player_uuid: row.uuid,
+      player_name: row.ign || 'Unknown',
       season: parseInt(season),
       
       // Record

@@ -1,5 +1,15 @@
 # Deploy Park Stats Edge Function
 
+## Database Information
+
+**MySQL Database:** s33066_MBA on sql1.revivenode.com
+- **Table:** `players`
+- **Player identifier:** `uuid` column (Minecraft player UUID)
+- **Player name:** `ign` column (in-game name)
+- **Season 1 stats columns:** 
+  - Record: `SEASON_1_WINS`, `SEASON_1_LOSSES`, `SEASON_1_GAMES_PLAYED`
+  - Stats: `SEASON_1_POINTS`, `SEASON_1_ASSISTS`, `SEASON_1_REBOUNDS`, etc.
+
 Since the Supabase CLI requires a specific installation method, you can deploy the Edge Function via the Supabase Dashboard:
 
 ## Option 1: Supabase Dashboard (Easiest)
