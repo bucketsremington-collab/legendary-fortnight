@@ -26,27 +26,68 @@ export default function Stats() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [isDbConnected, setIsDbConnected] = useState(false);
+  const [lastLoadTime, setLastLoadTime] = useState<number>(Date.now());
+
+  // Refresh data when page becomes visible after being idle
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const timeSinceLastLoad = Date.now() - lastLoadTime;
+        // Refresh if page was hidden for more than 5 minutes
+        if (timeSinceLastLoad > 5 * 60 * 1000 && !isLoading && !isDataLoading) {
+          console.log('Page visible after being idle, refreshing data...');
+          setLastLoadTime(Date.now());
+          // Trigger reload by toggling a state
+          if (statsType === 'park') {
+            fetchAllParkStats(1).then(setParkStats).catch(console.error);
+          } else {
+            fetchPlayerStats(selectedSeason).then(setPlayerStats).catch(console.error);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [lastLoadTime, isLoading, isDataLoading, statsType, selectedSeason]);
 
   // Load initial data on mount (users, teams, connection check)
   useEffect(() => {
     const loadInitialData = async () => {
       setIsLoading(true);
       
-      // Check connection
-      if (isSupabaseConfigured()) {
-        const connected = await checkSupabaseConnection();
-        setIsDbConnected(connected);
+      try {
+        // Timeout protection - fail after 15 seconds
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 15000)
+        );
+
+        // Check connection
+        if (isSupabaseConfigured()) {
+          const connected = await checkSupabaseConnection();
+          setIsDbConnected(connected);
+        }
+        
+        // Load users and teams once
+        const dataPromise = Promise.all([
+          fetchUsers(),
+          fetchTeams()
+        ]);
+
+        const [loadedUsers, loadedTeams] = await Promise.race([
+          dataPromise,
+          timeoutPromise
+        ]) as [User[], Team[]];
+
+        setUsers(loadedUsers);
+        setTeams(loadedTeams);
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        setIsLoading(false);
+        // Still show page with whatever data we have
       }
-      
-      // Load users and teams once
-      const [loadedUsers, loadedTeams] = await Promise.all([
-        fetchUsers(),
-        fetchTeams()
-      ]);
-      setUsers(loadedUsers);
-      setTeams(loadedTeams);
-      
-      setIsLoading(false);
     };
     loadInitialData();
   }, []);
@@ -58,15 +99,21 @@ export default function Stats() {
       
       setIsDataLoading(true);
       
-      if (statsType === 'park') {
-        const loadedParkStats = await fetchAllParkStats(1);
-        setParkStats(loadedParkStats);
-      } else {
-        const loadedStats = await fetchPlayerStats(selectedSeason);
-        setPlayerStats(loadedStats);
+      try {
+        if (statsType === 'park') {
+          const loadedParkStats = await fetchAllParkStats(1);
+          setParkStats(loadedParkStats);
+        } else {
+          const loadedStats = await fetchPlayerStats(selectedSeason);
+          setPlayerStats(loadedStats);
+        }
+      } catch (error) {
+        console.error('Error loading stats data:', error);
+        // Keep existing data on error
+      } finally {
+        setIsDataLoading(false);
+        setLastLoadTime(Date.now());
       }
-      
-      setIsDataLoading(false);
     };
     loadStatsData();
   }, [selectedSeason, statsType, isLoading]);

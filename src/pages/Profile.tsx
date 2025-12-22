@@ -113,29 +113,43 @@ export default function Profile() {
       setIsLoading(true);
       setNotFound(false);
 
-      // Find user from database (dataService handles fallback to mock data)
-      const foundUser = await fetchUserByUsername(username);
+      try {
+        // Timeout protection - fail after 10 seconds
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 10000)
+        );
 
-      if (!foundUser) {
-        setNotFound(true);
+        // Find user from database (dataService handles fallback to mock data)
+        const foundUser = await Promise.race([
+          fetchUserByUsername(username),
+          timeoutPromise
+        ]) as User | null;
+
+        if (!foundUser) {
+          setNotFound(true);
+          setIsLoading(false);
+          return;
+        }
+
+        setUser(foundUser);
+
+        // Load team
+        if (foundUser.team_id) {
+          const teams = await fetchTeams();
+          const foundTeam = teams.find(t => t.id === foundUser.team_id);
+          setTeam(foundTeam || null);
+        }
+
+        // Load accolades
+        const playerAccolades = await fetchAccoladesByUserId(foundUser.id);
+        setAccolades(playerAccolades);
+
         setIsLoading(false);
-        return;
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        setIsLoading(false);
+        setNotFound(true);
       }
-
-      setUser(foundUser);
-
-      // Load team
-      if (foundUser.team_id) {
-        const teams = await fetchTeams();
-        const foundTeam = teams.find(t => t.id === foundUser.team_id);
-        setTeam(foundTeam || null);
-      }
-
-      // Load accolades
-      const playerAccolades = await fetchAccoladesByUserId(foundUser.id);
-      setAccolades(playerAccolades);
-
-      setIsLoading(false);
     };
 
     loadProfile();
@@ -145,8 +159,13 @@ export default function Profile() {
   useEffect(() => {
     const loadStats = async () => {
       if (user) {
-        const playerStats = await fetchPlayerStatsByUserIdAndSeason(user.id, selectedSeason);
-        setStats(playerStats || null);
+        try {
+          const playerStats = await fetchPlayerStatsByUserIdAndSeason(user.id, selectedSeason);
+          setStats(playerStats || null);
+        } catch (error) {
+          console.error('Error loading stats:', error);
+          setStats(null);
+        }
       }
     };
     loadStats();
