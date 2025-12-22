@@ -10,6 +10,7 @@ import {
 import { useAuth, MBA_ROLE_IDS } from '../context/AuthContext';
 import { calculateStats } from '../utils/helpers';
 import MinecraftHead from '../components/MinecraftHead';
+import ParkStatsDisplay from '../components/ParkStatsDisplay';
 import { User, Team, PlayerStats, Accolade } from '../types';
 
 // Helper to check if user has a specific Discord role
@@ -531,6 +532,9 @@ export default function Profile() {
           <p className="text-mc-text-muted">No stats for this season</p>
         )}
       </div>
+
+      {/* Park Stats Card (Rec Games) */}
+      {user && <ParkStatsDisplay user={user} season={1} />}
 
       {/* Accolades Card */}
       {accolades.length > 0 && (
