@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { fetchTeamById, fetchTeamMembers, fetchGamesByTeamId } from '../data/dataService';
+import { useAuth, MBA_ROLE_IDS, hasDiscordRole } from '../context/AuthContext';
+import { fetchTeamById, fetchTeamMembers, fetchGamesByTeamId, fetchUsers } from '../data/dataService';
+import { signPlayer, releasePlayer } from '../data/franchiseService';
 import { Team, User, Game } from '../types';
 import MinecraftHead from '../components/MinecraftHead';
 
@@ -29,44 +30,36 @@ function TeamLogo({ team, size = 40 }: { team: Team, size?: number }) {
 }
 
 export default function FranchiseManage() {
-  const { user, mbaRoles, syncRolesToDatabase } = useAuth();
+  const { user } = useAuth();
   const [team, setTeam] = useState<Team | null>(null);
   const [roster, setRoster] = useState<User[]>([]);
   const [games, setGames] = useState<Game[]>([]);
+  const [freeAgents, setFreeAgents] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showSignModal, setShowSignModal] = useState(false);
 
   useEffect(() => {
     async function loadTeamData() {
-      // If user has a team role but no team_id, try to sync
-      if (!user?.team_id && mbaRoles.teamRoleId && !syncing) {
-        console.log('User has team role but no team_id, attempting sync...');
-        setSyncing(true);
-        try {
-          await syncRolesToDatabase();
-        } catch (err) {
-          console.error('Auto-sync failed:', err);
-        } finally {
-          setSyncing(false);
-        }
-        return;
-      }
-      
       if (!user?.team_id) {
         setLoading(false);
         return;
       }
 
       try {
-        const [teamData, membersData, gamesData] = await Promise.all([
+        const [teamData, membersData, gamesData, allUsers] = await Promise.all([
           fetchTeamById(user.team_id),
           fetchTeamMembers(user.team_id),
-          fetchGamesByTeamId(user.team_id)
+          fetchGamesByTeamId(user.team_id),
+          fetchUsers()
         ]);
 
         setTeam(teamData);
         setRoster(membersData);
         setGames(gamesData);
+        // Filter free agents (users without team_id and with minecraft_username)
+        setFreeAgents(allUsers.filter(u => !u.team_id && u.minecraft_username));
       } catch (err) {
         console.error('Error loading team data:', err);
       } finally {
@@ -75,17 +68,77 @@ export default function FranchiseManage() {
     }
 
     loadTeamData();
-  }, [user?.team_id, mbaRoles.teamRoleId, syncing]);
+  }, [user?.team_id]);
+
+  const handleSignPlayer = async (playerId: string) => {
+    if (!team || !user) return;
+    
+    setActionLoading(true);
+    setMessage(null);
+
+    const result = await signPlayer(team.id, playerId, user.id);
+    
+    if (result.success) {
+      setMessage({ type: 'success', text: result.message });
+      // Refresh roster and free agents
+      const [membersData, allUsers] = await Promise.all([
+        fetchTeamMembers(team.id),
+        fetchUsers()
+      ]);
+      setRoster(membersData);
+      setFreeAgents(allUsers.filter(u => !u.team_id && u.minecraft_username));
+      setShowSignModal(false);
+    } else {
+      setMessage({ type: 'error', text: result.message });
+    }
+
+    setActionLoading(false);
+    setTimeout(() => setMessage(null), 5000);
+  };
+
+  const handleReleasePlayer = async (playerId: string) => {
+    if (!team || !user) return;
+    
+    if (!confirm('Are you sure you want to release this player?')) return;
+    
+    setActionLoading(true);
+    setMessage(null);
+
+    const result = await releasePlayer(team.id, playerId, user.id);
+    
+    if (result.success) {
+      setMessage({ type: 'success', text: result.message });
+      // Refresh roster and free agents
+      const [membersData, allUsers] = await Promise.all([
+        fetchTeamMembers(team.id),
+        fetchUsers()
+      ]);
+      setRoster(membersData);
+      setFreeAgents(allUsers.filter(u => !u.team_id && u.minecraft_username));
+    } else {
+      setMessage({ type: 'error', text: result.message });
+    }
+
+    setActionLoading(false);
+    setTimeout(() => setMessage(null), 5000);
+  };
+
+  // Check if user has franchise owner or general manager permissions
+  const canManageRoster = user && (
+    hasDiscordRole(user, MBA_ROLE_IDS.FRANCHISE_OWNER) ||
+    hasDiscordRole(user, MBA_ROLE_IDS.GENERAL_MANAGER) ||
+    hasDiscordRole(user, MBA_ROLE_IDS.HEAD_COACH)
+  );
 
   // Check if user has franchise owner permissions
-  if (!mbaRoles.isFranchiseOwner) {
+  if (!canManageRoster) {
     return (
       <div className="max-w-4xl mx-auto">
         <div className="mc-card p-8 text-center">
           <div className="text-6xl mb-4">🔒</div>
           <h1 className="text-2xl font-bold text-mc-text mb-2">Access Denied</h1>
           <p className="text-mc-text-muted mb-4">
-            You must be a Franchise Owner to access this page.
+            You must be a Franchise Owner, General Manager, or Head Coach to access this page.
           </p>
           <Link to="/home" className="text-mc-accent hover:underline">
             Return to Home
@@ -95,12 +148,10 @@ export default function FranchiseManage() {
     );
   }
 
-  if (loading || syncing) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-mc-text-muted">
-          {syncing ? 'Syncing your team assignment...' : 'Loading franchise data...'}
-        </div>
+        <div className="text-mc-text-muted">Loading franchise data...</div>
       </div>
     );
   }
@@ -112,9 +163,7 @@ export default function FranchiseManage() {
           <div className="text-6xl mb-4">⚠️</div>
           <h1 className="text-2xl font-bold text-mc-text mb-2">No Team Found</h1>
           <p className="text-mc-text-muted mb-4">
-            {mbaRoles.teamRoleId 
-              ? "Team not linked in database. Please ask an admin to link your team using /linkteam in Discord."
-              : "You don't appear to have a team role in Discord. Please contact an administrator."}
+            You don't appear to have a team assignment. Please contact an administrator.
           </p>
           <Link to="/home" className="text-mc-accent hover:underline">
             Return to Home
@@ -125,10 +174,19 @@ export default function FranchiseManage() {
   }
 
   const upcomingGames = games.filter(g => g.status === 'scheduled').slice(0, 5);
-  // const completedGames = games.filter(g => g.status === 'completed').slice(0, 5);
+  const rosterCap = 10; // TODO: Make this configurable
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
+      {/* Message Banner */}
+      {message && (
+        <div className={`mc-card p-4 border-l-4 ${message.type === 'success' ? 'border-green-500 bg-green-900/20' : 'border-red-500 bg-red-900/20'}`}>
+          <p className={message.type === 'success' ? 'text-green-200' : 'text-red-200'}>
+            {message.text}
+          </p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mc-card overflow-hidden">
         <div 
@@ -174,22 +232,31 @@ export default function FranchiseManage() {
         <div className="mc-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-mc-text">Roster</h2>
-            <span className="text-sm text-mc-text-muted">{roster.length} members</span>
+            <span className="text-sm text-mc-text-muted">{roster.length}/{rosterCap}</span>
           </div>
           
           <div className="space-y-2 max-h-80 overflow-y-auto">
             {roster.map(member => (
-              <Link
+              <div
                 key={member.id}
-                to={`/profile/${member.username}`}
-                className="flex items-center gap-3 p-3 bg-mc-surface-light border border-mc-border hover:border-mc-accent transition-colors rounded"
+                className="flex items-center gap-3 p-3 bg-mc-surface-light border border-mc-border rounded"
               >
-                <MinecraftHead username={member.minecraft_username} size={36} />
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-mc-text truncate">{member.minecraft_username}</div>
-                  <div className="text-sm text-mc-text-muted capitalize">{member.role}</div>
-                </div>
-              </Link>
+                <Link to={`/profile/${member.username}`} className="flex items-center gap-3 flex-1 min-w-0">
+                  <MinecraftHead username={member.minecraft_username} size={36} />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-mc-text truncate">{member.minecraft_username}</div>
+                    <div className="text-sm text-mc-text-muted capitalize">{member.role}</div>
+                  </div>
+                </Link>
+                <button
+                  onClick={() => handleReleasePlayer(member.id)}
+                  disabled={actionLoading}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white text-sm rounded transition-colors"
+                  title="Release player"
+                >
+                  📤 Release
+                </button>
+              </div>
             ))}
             {roster.length === 0 && (
               <p className="text-mc-text-muted text-center py-4">No roster members yet</p>
@@ -198,10 +265,11 @@ export default function FranchiseManage() {
 
           <div className="mt-4 pt-4 border-t border-mc-border">
             <button 
-              disabled
-              className="w-full px-4 py-2 bg-mc-surface border border-mc-border text-mc-text-muted rounded cursor-not-allowed"
+              onClick={() => setShowSignModal(true)}
+              disabled={actionLoading || roster.length >= rosterCap}
+              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded transition-colors"
             >
-              🚧 Roster Management Coming Soon
+              📝 Sign Free Agent {roster.length >= rosterCap && '(Roster Full)'}
             </button>
           </div>
         </div>
@@ -269,6 +337,49 @@ export default function FranchiseManage() {
           </div>
         </div>
       </div>
+
+      {/* Sign Free Agent Modal */}
+      {showSignModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="mc-card p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-mc-text">Sign Free Agent</h2>
+              <button
+                onClick={() => setShowSignModal(false)}
+                className="text-mc-text-muted hover:text-mc-text"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {freeAgents.length > 0 ? (
+                freeAgents.map(agent => (
+                  <div
+                    key={agent.id}
+                    className="flex items-center gap-3 p-3 bg-mc-surface-light border border-mc-border rounded"
+                  >
+                    <MinecraftHead username={agent.minecraft_username} size={36} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-mc-text truncate">{agent.minecraft_username}</div>
+                      <div className="text-sm text-mc-text-muted">@{agent.username}</div>
+                    </div>
+                    <button
+                      onClick={() => handleSignPlayer(agent.id)}
+                      disabled={actionLoading}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded transition-colors"
+                    >
+                      📝 Sign
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-mc-text-muted text-center py-8">No free agents available</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
