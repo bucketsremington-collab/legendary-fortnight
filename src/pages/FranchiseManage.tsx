@@ -131,6 +131,13 @@ export default function FranchiseManage() {
     hasDiscordRole(user, MBA_ROLE_IDS.HEAD_COACH)
   );
 
+  console.log('FranchiseManage - User:', user?.username);
+  console.log('FranchiseManage - Discord Roles:', user?.discord_roles);
+  console.log('FranchiseManage - Can Manage:', canManageRoster);
+  console.log('FranchiseManage - Has FO Role:', hasDiscordRole(user, MBA_ROLE_IDS.FRANCHISE_OWNER));
+  console.log('FranchiseManage - Has GM Role:', hasDiscordRole(user, MBA_ROLE_IDS.GENERAL_MANAGER));
+  console.log('FranchiseManage - Has HC Role:', hasDiscordRole(user, MBA_ROLE_IDS.HEAD_COACH));
+
   // Check if user has franchise owner permissions
   if (!canManageRoster) {
     return (
@@ -141,9 +148,17 @@ export default function FranchiseManage() {
           <p className="text-mc-text-muted mb-4">
             You must be a Franchise Owner, General Manager, or Head Coach to access this page.
           </p>
-          <Link to="/home" className="text-mc-accent hover:underline">
-            Return to Home
-          </Link>
+          <p className="text-sm text-mc-text-muted mb-4">
+            Your Discord roles: {user?.discord_roles?.length || 0} roles cached
+          </p>
+          <div className="space-y-2">
+            <Link to="/profile" className="block text-mc-accent hover:underline">
+              Go to Profile to sync Discord roles
+            </Link>
+            <Link to="/home" className="block text-mc-accent hover:underline">
+              Return to Home
+            </Link>
+          </div>
         </div>
       </div>
     );
