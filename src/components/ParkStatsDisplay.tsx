@@ -5,12 +5,12 @@ import { fetchParkStatsByUser, ParkStatsAggregated } from '../data/parkStatsServ
 interface ParkStatsDisplayProps {
   user: User;
   season?: number;
+  showTotals?: boolean; // Controlled from parent
 }
 
-export default function ParkStatsDisplay({ user, season = 1 }: ParkStatsDisplayProps) {
+export default function ParkStatsDisplay({ user, season = 1, showTotals = false }: ParkStatsDisplayProps) {
   const [stats, setStats] = useState<ParkStatsAggregated | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showTotals, setShowTotals] = useState(false); // Toggle between averages and totals
 
   useEffect(() => {
     async function loadStats() {
@@ -24,8 +24,7 @@ export default function ParkStatsDisplay({ user, season = 1 }: ParkStatsDisplayP
 
   if (loading) {
     return (
-      <div className="mc-card p-6">
-        <h2 className="text-lg font-bold text-mc-text mb-4">Park/Rec Stats</h2>
+      <div>
         <p className="text-mc-text-secondary">Loading...</p>
       </div>
     );
@@ -33,43 +32,14 @@ export default function ParkStatsDisplay({ user, season = 1 }: ParkStatsDisplayP
 
   if (!stats) {
     return (
-      <div className="mc-card p-6">
-        <h2 className="text-lg font-bold text-mc-text mb-4">Park/Rec Stats</h2>
+      <div>
         <p className="text-mc-text-secondary">No park stats found for Season {season}</p>
       </div>
     );
   }
 
   return (
-    <div className="mc-card p-6">
-      <div className="flex items-center justify-between border-b border-mc-border pb-2 mb-4">
-        <h2 className="text-lg font-bold text-mc-text">Park/Rec Stats</h2>
-        
-        {/* Toggle between Averages and Totals */}
-        <div className="inline-flex rounded-md overflow-hidden">
-          <button
-            onClick={() => setShowTotals(false)}
-            className={`px-3 py-1 text-sm font-medium transition-colors border focus:outline-none ${
-              !showTotals 
-                ? 'bg-mc-accent text-white border-mc-accent' 
-                : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
-            } rounded-l-md border-r-0`}
-          >
-            Averages
-          </button>
-          <button
-            onClick={() => setShowTotals(true)}
-            className={`px-3 py-1 text-sm font-medium transition-colors border focus:outline-none ${
-              showTotals 
-                ? 'bg-mc-accent text-white border-mc-accent' 
-                : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
-            } rounded-r-md`}
-          >
-            Totals
-          </button>
-        </div>
-      </div>
-
+    <>
       {/* Record */}
       <div className="mb-6">
         <h4 className="text-sm font-semibold text-mc-text mb-3">Record</h4>
@@ -140,7 +110,7 @@ export default function ParkStatsDisplay({ user, season = 1 }: ParkStatsDisplayP
           />
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

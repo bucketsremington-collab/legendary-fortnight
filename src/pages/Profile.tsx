@@ -67,6 +67,8 @@ export default function Profile() {
   
   // Stats display mode (average or total)
   const [showTotals, setShowTotals] = useState(false);
+  // Stats type (Season vs Park/Rec)
+  const [statsType, setStatsType] = useState<'season' | 'park'>('season');
 
   // Check if this is the current user's profile
   const isOwnProfile = currentUser?.id === user?.id || 
@@ -408,11 +410,35 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Stats Card */}
+      {/* Unified Stats Card */}
       <div className="mc-card p-6">
         <div className="flex items-center justify-between border-b border-mc-border pb-2 mb-4">
-          <h2 className="text-lg font-bold text-mc-text">Season Stats</h2>
+          <h2 className="text-lg font-bold text-mc-text">Player Stats</h2>
           <div className="flex items-center gap-2">
+            {/* Season/Park Toggle */}
+            <div className="inline-flex rounded-md overflow-hidden">
+              <button
+                onClick={() => setStatsType('season')}
+                className={`px-3 py-1 text-sm font-medium transition-colors border focus:outline-none ${
+                  statsType === 'season'
+                    ? 'bg-mc-accent text-white border-mc-accent' 
+                    : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
+                } rounded-l-md border-r-0`}
+              >
+                Season
+              </button>
+              <button
+                onClick={() => setStatsType('park')}
+                className={`px-3 py-1 text-sm font-medium transition-colors border focus:outline-none ${
+                  statsType === 'park'
+                    ? 'bg-mc-accent text-white border-mc-accent' 
+                    : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
+                } rounded-r-md`}
+              >
+                Park/Rec
+              </button>
+            </div>
+            {/* Averages/Totals Toggle */}
             <div className="inline-flex rounded-md overflow-hidden">
               <button
                 onClick={() => setShowTotals(false)}
@@ -435,106 +461,91 @@ export default function Profile() {
                 Totals
               </button>
             </div>
-            <select
-              value={selectedSeason}
-              onChange={(e) => setSelectedSeason(e.target.value)}
-              title="Select season"
-              className="px-3 py-1 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
-            >
-              {AVAILABLE_SEASONS.map(season => (
-                <option key={season} value={season}>
-                  Season {season.replace('S', '')}
-                </option>
-              ))}
-            </select>
+            {statsType === 'season' && (
+              <select
+                value={selectedSeason}
+                onChange={(e) => setSelectedSeason(e.target.value)}
+                title="Select season"
+                className="px-3 py-1 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
+              >
+                {AVAILABLE_SEASONS.map(season => (
+                  <option key={season} value={season}>
+                    Season {season.replace('S', '')}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
         
-        {stats && calculated ? (
-          <>
-            {showTotals ? (
-              /* Total Stats View */
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
+        {statsType === 'season' ? (
+          /* Season Stats */
+          stats && calculated ? (
+            <>
+              {/* Record Section for Season Stats */}
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-mc-text mb-3">Season Record</h4>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
                     <div className="text-2xl font-bold text-mc-accent">{stats.games_played}</div>
-                    <div className="text-sm text-mc-text-muted">Games</div>
-                  </div>
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-2xl font-bold text-mc-accent">{stats.points_scored}</div>
-                    <div className="text-sm text-mc-text-muted">PTS</div>
-                  </div>
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-2xl font-bold text-mc-accent">{stats.assists}</div>
-                    <div className="text-sm text-mc-text-muted">AST</div>
-                  </div>
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-2xl font-bold text-mc-accent">{stats.rebounds}</div>
-                    <div className="text-sm text-mc-text-muted">REB</div>
+                    <div className="text-sm text-mc-text-muted">Games Played</div>
                   </div>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-3 gap-4 mt-4">
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-xl font-bold text-mc-text">{stats.steals}</div>
-                    <div className="text-sm text-mc-text-muted">STL</div>
+              {/* Stats Section */}
+              <div>
+                <h4 className="text-sm font-semibold text-mc-text mb-3">
+                  {showTotals ? 'Total Stats' : 'Averages'}
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
+                    <div className="text-lg font-bold text-mc-text">
+                      {showTotals ? stats.points_scored : calculated.ppg.toFixed(1)}
+                    </div>
+                    <div className="text-xs text-mc-text-muted">PTS</div>
                   </div>
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-xl font-bold text-mc-text">{stats.blocks}</div>
-                    <div className="text-sm text-mc-text-muted">BLK</div>
+                  <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
+                    <div className="text-lg font-bold text-mc-text">
+                      {showTotals ? stats.assists : calculated.apg.toFixed(1)}
+                    </div>
+                    <div className="text-xs text-mc-text-muted">AST</div>
                   </div>
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-xl font-bold text-mc-text">{stats.turnovers}</div>
-                    <div className="text-sm text-mc-text-muted">TO</div>
+                  <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
+                    <div className="text-lg font-bold text-mc-text">
+                      {showTotals ? stats.rebounds : calculated.rpg.toFixed(1)}
+                    </div>
+                    <div className="text-xs text-mc-text-muted">REB</div>
                   </div>
-                </div>
-              </>
-            ) : (
-              /* Averages View */
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-2xl font-bold text-mc-accent">{stats.games_played}</div>
-                    <div className="text-sm text-mc-text-muted">Games</div>
+                  <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
+                    <div className="text-lg font-bold text-mc-text">
+                      {showTotals ? stats.steals : calculated.spg.toFixed(1)}
+                    </div>
+                    <div className="text-xs text-mc-text-muted">STL</div>
                   </div>
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-2xl font-bold text-mc-accent">{calculated.ppg.toFixed(1)}</div>
-                    <div className="text-sm text-mc-text-muted">PPG</div>
+                  <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
+                    <div className="text-lg font-bold text-mc-text">
+                      {showTotals ? stats.blocks : calculated.bpg.toFixed(1)}
+                    </div>
+                    <div className="text-xs text-mc-text-muted">BLK</div>
                   </div>
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-2xl font-bold text-mc-accent">{calculated.apg.toFixed(1)}</div>
-                    <div className="text-sm text-mc-text-muted">APG</div>
-                  </div>
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-2xl font-bold text-mc-accent">{calculated.rpg.toFixed(1)}</div>
-                    <div className="text-sm text-mc-text-muted">RPG</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 mt-4">
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-xl font-bold text-mc-text">{calculated.spg.toFixed(1)}</div>
-                    <div className="text-sm text-mc-text-muted">SPG</div>
-                  </div>
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-xl font-bold text-mc-text">{calculated.bpg.toFixed(1)}</div>
-                    <div className="text-sm text-mc-text-muted">BPG</div>
-                  </div>
-                  <div className="text-center p-3 bg-mc-surface-light border border-mc-border">
-                    <div className="text-xl font-bold text-mc-text">{calculated.tpg.toFixed(1)}</div>
-                    <div className="text-sm text-mc-text-muted">TPG</div>
+                  <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
+                    <div className="text-lg font-bold text-mc-text">
+                      {showTotals ? stats.turnovers : calculated.tpg.toFixed(1)}
+                    </div>
+                    <div className="text-xs text-mc-text-muted">TO</div>
                   </div>
                 </div>
-              </>
-            )}
-          </>
+              </div>
+            </>
+          ) : (
+            <p className="text-mc-text-muted">No stats for this season</p>
+          )
         ) : (
-          <p className="text-mc-text-muted">No stats for this season</p>
+          /* Park/Rec Stats */
+          user && <ParkStatsDisplay user={user} season={1} showTotals={showTotals} />
         )}
       </div>
-
-      {/* Park Stats Card (Rec Games) */}
-      {user && <ParkStatsDisplay user={user} season={1} />}
 
       {/* Accolades Card */}
       {accolades.length > 0 && (
