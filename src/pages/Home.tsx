@@ -151,17 +151,15 @@ export default function Home() {
             setNews(cachedNews);
             setGames(cachedGames);
           } else {
-            // Set empty data instead of staying in loading state
-            setNews([]);
-            setGames([]);
+            // Only clear news/games on failure, keep users/teams/free agents if already loaded
+            if (news.length === 0) setNews([]);
+            if (games.length === 0) setGames([]);
           }
         } catch {
-          setNews([]);
-          setGames([]);
+          if (news.length === 0) setNews([]);
+          if (games.length === 0) setGames([]);
         }
-        setFreeAgentListings([]);
-        setUsers([]);
-        setTeams([]);
+        // Don't clear users, teams, or free agents - they might be from a previous successful load
       } finally {
         setLoading(false);
       }
@@ -193,7 +191,11 @@ export default function Home() {
   const pinnedNews = news.filter(n => n.is_pinned);
   const regularNews = news.filter(n => !n.is_pinned);
   const recentFreeAgents = freeAgentListings.filter(fa => fa.availability === 'available').slice(0, 3);
-  const topPlayers = users.filter(u => u.role === 'player').slice(0, 5);
+  // Show all users, sorted by most recently updated (active)
+  const topPlayers = users
+    .filter(u => u.minecraft_username) // Only show users with minecraft username
+    .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
+    .slice(0, 5);
 
   if (loading) {
     return (
