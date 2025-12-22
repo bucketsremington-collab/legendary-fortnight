@@ -24,8 +24,8 @@ export default function ParkStatsDisplay({ user, season = 1 }: ParkStatsDisplayP
 
   if (loading) {
     return (
-      <div className="bg-mc-surface border-2 border-mc-border p-6 rounded-lg">
-        <h3 className="text-xl font-bold text-mc-text mb-4">Park Stats (Rec Games)</h3>
+      <div className="mc-card p-6">
+        <h2 className="text-lg font-bold text-mc-text mb-4">Park/Rec Stats</h2>
         <p className="text-mc-text-secondary">Loading...</p>
       </div>
     );
@@ -33,37 +33,37 @@ export default function ParkStatsDisplay({ user, season = 1 }: ParkStatsDisplayP
 
   if (!stats) {
     return (
-      <div className="bg-mc-surface border-2 border-mc-border p-6 rounded-lg">
-        <h3 className="text-xl font-bold text-mc-text mb-4">Park Stats (Rec Games)</h3>
+      <div className="mc-card p-6">
+        <h2 className="text-lg font-bold text-mc-text mb-4">Park/Rec Stats</h2>
         <p className="text-mc-text-secondary">No park stats found for Season {season}</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-mc-surface border-2 border-mc-border p-6 rounded-lg">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold text-mc-text">Park Stats (Rec Games)</h3>
+    <div className="mc-card p-6">
+      <div className="flex items-center justify-between border-b border-mc-border pb-2 mb-4">
+        <h2 className="text-lg font-bold text-mc-text">Park/Rec Stats</h2>
         
         {/* Toggle between Averages and Totals */}
-        <div className="flex gap-2 bg-mc-surface-light rounded-lg p-1">
+        <div className="inline-flex rounded-md overflow-hidden">
           <button
             onClick={() => setShowTotals(false)}
-            className={`px-4 py-2 rounded-md font-medium transition-colors ${
+            className={`px-3 py-1 text-sm font-medium transition-colors border focus:outline-none ${
               !showTotals 
-                ? 'bg-mc-accent text-white' 
-                : 'text-mc-text-secondary hover:text-mc-text'
-            }`}
+                ? 'bg-mc-accent text-white border-mc-accent' 
+                : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
+            } rounded-l-md border-r-0`}
           >
             Averages
           </button>
           <button
             onClick={() => setShowTotals(true)}
-            className={`px-4 py-2 rounded-md font-medium transition-colors ${
+            className={`px-3 py-1 text-sm font-medium transition-colors border focus:outline-none ${
               showTotals 
-                ? 'bg-mc-accent text-white' 
-                : 'text-mc-text-secondary hover:text-mc-text'
-            }`}
+                ? 'bg-mc-accent text-white border-mc-accent' 
+                : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
+            } rounded-r-md`}
           >
             Totals
           </button>
@@ -72,30 +72,30 @@ export default function ParkStatsDisplay({ user, season = 1 }: ParkStatsDisplayP
 
       {/* Record */}
       <div className="mb-6">
-        <h4 className="text-lg font-semibold text-mc-text mb-3">Record</h4>
+        <h4 className="text-sm font-semibold text-mc-text mb-3">Record</h4>
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-mc-surface-light p-4 rounded-lg text-center">
+          <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
             <div className="text-2xl font-bold text-mc-accent">{stats.total_wins}</div>
-            <div className="text-sm text-mc-text-secondary">Wins</div>
+            <div className="text-sm text-mc-text-muted">Wins</div>
           </div>
-          <div className="bg-mc-surface-light p-4 rounded-lg text-center">
+          <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
             <div className="text-2xl font-bold text-red-500">{stats.total_losses}</div>
-            <div className="text-sm text-mc-text-secondary">Losses</div>
+            <div className="text-sm text-mc-text-muted">Losses</div>
           </div>
-          <div className="bg-mc-surface-light p-4 rounded-lg text-center">
+          <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
             <div className="text-2xl font-bold text-mc-text">{stats.win_percentage.toFixed(1)}%</div>
-            <div className="text-sm text-mc-text-secondary">Win %</div>
+            <div className="text-sm text-mc-text-muted">Win %</div>
           </div>
         </div>
-        <div className="mt-2 text-center text-mc-text-secondary text-sm">
+        <div className="mt-2 text-center text-mc-text-muted text-sm">
           {stats.total_games} Games Played
         </div>
       </div>
 
       {/* Stats */}
       <div>
-        <h4 className="text-lg font-semibold text-mc-text mb-3">
-          {showTotals ? 'Total Stats' : 'Per Game Averages'}
+        <h4 className="text-sm font-semibold text-mc-text mb-3">
+          {showTotals ? 'Total Stats' : 'Averages'}
         </h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard 
@@ -159,9 +159,9 @@ function StatCard({ label, value, showTotals = false, isPercentage = false }: St
       : value.toFixed(1);
 
   return (
-    <div className="bg-mc-surface-light p-3 rounded-lg">
+    <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
       <div className="text-lg font-bold text-mc-text">{displayValue}</div>
-      <div className="text-xs text-mc-text-secondary">{label}</div>
+      <div className="text-xs text-mc-text-muted">{label}</div>
     </div>
   );
 }
