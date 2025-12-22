@@ -20,6 +20,8 @@ const BOT_API_KEY = import.meta.env.VITE_BOT_API_KEY;
  */
 export async function signPlayer(teamId: string, playerId: string, coachId: string): Promise<{ success: boolean; message: string }> {
   try {
+    console.log('signPlayer called:', { teamId, playerId, coachId });
+    
     // Check if player is already on a team
     const { data: player } = await supabase!
       .from('users')
@@ -27,12 +29,15 @@ export async function signPlayer(teamId: string, playerId: string, coachId: stri
       .eq('id', playerId)
       .single();
 
+    console.log('Player data:', player);
+
     if (player?.team_id) {
       return { success: false, message: 'Player is already on a team' };
     }
 
     if (!player?.discord_id) {
-      return { success: false, message: 'Player must be linked to Discord' };
+      console.warn('Player missing discord_id:', playerId);
+      return { success: false, message: 'Player must be linked to Discord. Ask them to log in to the website first.' };
     }
 
     // Get roster count
@@ -48,6 +53,13 @@ export async function signPlayer(teamId: string, playerId: string, coachId: stri
       return { success: false, message: `Roster is full (${rosterCount}/${rosterCap})` };
     }
 
+    console.log('Calling bot API:', {
+      guild_id: GUILD_ID,
+      player_id: player.discord_id.replace('discord-', ''),
+      team_id: teamId,
+      coach_id: coachId
+    });
+
     // Call bot API to handle the transaction
     const result = await callBotAPI('sign', {
       guild_id: GUILD_ID,
@@ -55,6 +67,8 @@ export async function signPlayer(teamId: string, playerId: string, coachId: stri
       team_id: teamId,
       coach_id: coachId
     });
+
+    console.log('Bot API result:', result);
 
     if (!result.success) {
       return result;
@@ -75,7 +89,7 @@ export async function signPlayer(teamId: string, playerId: string, coachId: stri
     return { success: true, message: 'Player signed successfully' };
   } catch (error) {
     console.error('Error signing player:', error);
-    return { success: false, message: 'Failed to sign player' };
+    return { success: false, message: error instanceof Error ? error.message : 'Failed to sign player' };
   }
 }
 
@@ -147,12 +161,18 @@ async function logTransaction(transaction: TransactionHistory) {
  * Call bot API to execute transaction
  */
 async function callBotAPI(action: 'sign' | 'release', data: any): Promise<{ success: boolean; message: string }> {
+  console.log('callBotAPI - BOT_API_URL:', BOT_API_URL);
+  console.log('callBotAPI - BOT_API_KEY set:', !!BOT_API_KEY);
+  
   if (!BOT_API_URL || !BOT_API_KEY) {
-    return { success: false, message: 'Bot API not configured' };
+    return { success: false, message: 'Bot API not configured. Check VITE_BOT_API_URL and VITE_BOT_API_KEY environment variables.' };
   }
 
   try {
-    const response = await fetch(`${BOT_API_URL}/api/transaction/${action}`, {
+    const url = `${BOT_API_URL}/api/transaction/${action}`;
+    console.log('Calling bot API:', url, data);
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -161,14 +181,25 @@ async function callBotAPI(action: 'sign' | 'release', data: any): Promise<{ succ
       body: JSON.stringify(data)
     });
 
+    console.log('Bot API response status:', response.status);
+    const responseText = await response.text();
+    console.log('Bot API response body:', responseText);
+
     if (!response.ok) {
-      const error = await response.json();
-      return { success: false, message: error.error || 'Bot API request failed' };
+      let errorMessage = 'Bot API request failed';
+      try {
+        const error = JSON.parse(responseText);
+        errorMessage = error.error || error.message || errorMessage;
+      } catch (e) {
+        errorMessage = responseText || errorMessage;
+      }
+      return { success: false, message: errorMessage };
     }
 
-    return await response.json();
+    const result = JSON.parse(responseText);
+    return result;
   } catch (error) {
     console.error('Error calling bot API:', error);
-    return { success: false, message: 'Failed to connect to bot API' };
+    return { success: false, message: `Failed to connect to bot API: ${error instanceof Error ? error.message : 'Unknown error'}` };
   }
 }
