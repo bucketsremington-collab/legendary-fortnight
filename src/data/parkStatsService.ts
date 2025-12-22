@@ -129,36 +129,13 @@ export async function fetchParkStatsAggregated(uuid: string, season: number = 1)
 }
 
 /**
- * Convert Minecraft username to UUID using Mojang API
- */
-async function getMinecraftUUID(username: string): Promise<string | null> {
-  try {
-    const response = await fetch(`https://api.mojang.com/users/profiles/minecraft/${username}`);
-    if (!response.ok) {
-      console.warn(`Could not find UUID for Minecraft username: ${username}`);
-      return null;
-    }
-    const data = await response.json();
-    // Format UUID with dashes (Mojang returns without dashes)
-    const uuid = data.id;
-    return `${uuid.slice(0,8)}-${uuid.slice(8,12)}-${uuid.slice(12,16)}-${uuid.slice(16,20)}-${uuid.slice(20)}`;
-  } catch (error) {
-    console.error('Error fetching Minecraft UUID:', error);
-    return null;
-  }
-}
-
-/**
- * Fetch park stats by MBA user (converts minecraft_username to UUID if needed)
+ * Fetch park stats by MBA user
+ * The Edge Function will handle converting minecraft_username to UUID server-side
  */
 export async function fetchParkStatsByUser(user: User, season: number = 1): Promise<ParkStatsAggregated | null> {
-  // Convert Minecraft username to UUID
-  const uuid = await getMinecraftUUID(user.minecraft_username);
-  if (!uuid) {
-    console.warn(`Could not get UUID for user ${user.username} (Minecraft: ${user.minecraft_username})`);
-    return null;
-  }
-  return fetchParkStatsAggregated(uuid, season);
+  // Pass the minecraft username directly - Edge Function will convert to UUID
+  const identifier = user.minecraft_username || user.username;
+  return fetchParkStatsAggregated(identifier, season);
 }
 
 /**

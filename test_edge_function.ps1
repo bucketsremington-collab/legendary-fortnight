@@ -1,4 +1,4 @@
-$uri = "https://fsgxoaocntphqnrzuhqe.supabase.co/functions/v1/park-stats/103b494e-fc3c-40c9-a71a-1cf5d9ad09f4?season=1"
+$uri = "https://fsgxoaocntphqnrzuhqe.supabase.co/functions/v1/park-stats/posterizing?season=1"
 $anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzZ3hvYW9jbnRwaHFucnp1aHFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwMjEzMjgsImV4cCI6MjA4MTU5NzMyOH0.iw45a-XL3KdRKHoW0VZNHNuFACdq0RXWt9YK0HWgaB4"
 
 $headers = @{
@@ -6,8 +6,8 @@ $headers = @{
     "apikey" = $anonKey
 }
 
-Write-Host "Testing Edge Function..." -ForegroundColor Cyan
-Write-Host "UUID: 103b494e-fc3c-40c9-a71a-1cf5d9ad09f4 (Tymandu)`n" -ForegroundColor Yellow
+Write-Host "Testing Edge Function with USERNAME..." -ForegroundColor Cyan
+Write-Host "Username: posterizing (will be converted to UUID server-side)`n" -ForegroundColor Yellow
 
 try {
     $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get

@@ -16,8 +16,27 @@ serve(async (req) => {
   try {
     const url = new URL(req.url)
     const pathParts = url.pathname.split('/').filter(Boolean)
-    const playerUUID = pathParts[pathParts.length - 1] // Get last part of path
+    let playerIdentifier = pathParts[pathParts.length - 1] // Get last part of path
     const season = url.searchParams.get('season') || '1'
+    
+    let playerUUID = playerIdentifier;
+    
+    // If the identifier doesn't look like a UUID (no dashes), try to convert from username to UUID
+    if (!playerIdentifier.includes('-')) {
+      // Call Mojang API to convert username to UUID
+      try {
+        const mojangResponse = await fetch(`https://api.mojang.com/users/profiles/minecraft/${playerIdentifier}`);
+        if (mojangResponse.ok) {
+          const mojangData = await mojangResponse.json();
+          const rawUuid = mojangData.id;
+          // Format UUID with dashes
+          playerUUID = `${rawUuid.slice(0,8)}-${rawUuid.slice(8,12)}-${rawUuid.slice(12,16)}-${rawUuid.slice(16,20)}-${rawUuid.slice(20)}`;
+        }
+      } catch (error) {
+        console.log('Could not convert username to UUID:', error);
+        // Continue with original identifier
+      }
+    }
     
     // Connect to MySQL database
     const client = await new Client().connect({
