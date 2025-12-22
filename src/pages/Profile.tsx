@@ -84,7 +84,10 @@ export default function Profile() {
     const detectLinkedAccount = async () => {
       if (isEditing && isOwnProfile && currentUser?.id) {
         // Get Discord ID from Supabase auth user metadata
-        const { data: { user: authUser } } = await (await import('../lib/supabase')).supabase.auth.getUser();
+        const supabaseModule = await import('../lib/supabase');
+        if (!supabaseModule.supabase) return;
+        
+        const { data: { user: authUser } } = await supabaseModule.supabase.auth.getUser();
         const discordId = authUser?.user_metadata?.provider_id;
         
         if (discordId) {
@@ -166,16 +169,19 @@ export default function Profile() {
 
     // Validate Minecraft username if changed
     if (editMinecraftUsername !== user.minecraft_username) {
-      const { data: { user: authUser } } = await (await import('../lib/supabase')).supabase.auth.getUser();
-      const discordId = authUser?.user_metadata?.provider_id;
-      
-      if (discordId) {
-        const validation = await validateMinecraftUsernameForUser(editMinecraftUsername, discordId);
-        if (!validation.valid) {
-          setMinecraftValidationError(validation.message);
-          setSaveMessage('Validation failed');
-          setIsSaving(false);
-          return;
+      const supabaseModule = await import('../lib/supabase');
+      if (supabaseModule.supabase) {
+        const { data: { user: authUser } } = await supabaseModule.supabase.auth.getUser();
+        const discordId = authUser?.user_metadata?.provider_id;
+        
+        if (discordId) {
+          const validation = await validateMinecraftUsernameForUser(editMinecraftUsername, discordId);
+          if (!validation.valid) {
+            setMinecraftValidationError(validation.message);
+            setSaveMessage('Validation failed');
+            setIsSaving(false);
+            return;
+          }
         }
       }
     }
