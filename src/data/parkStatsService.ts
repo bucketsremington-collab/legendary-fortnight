@@ -55,13 +55,19 @@ export interface ParkStatsAggregated {
 
 // API endpoint - this will need to be set up as a Supabase Edge Function or separate backend
 const PARK_STATS_API = import.meta.env.VITE_PARK_STATS_API || '/api/park-stats';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 /**
  * Fetch park stats for a specific player by their Minecraft UUID
  */
 export async function fetchParkStatsByUUID(uuid: string, season: number = 1): Promise<ParkGameStats | null> {
   try {
-    const response = await fetch(`${PARK_STATS_API}/${uuid}?season=${season}`);
+    const response = await fetch(`${PARK_STATS_API}/${uuid}?season=${season}`, {
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
+      }
+    });
     
     if (!response.ok) {
       if (response.status === 404) {
@@ -123,12 +129,35 @@ export async function fetchParkStatsAggregated(uuid: string, season: number = 1)
 }
 
 /**
+ * Convert Minecraft username to UUID using Mojang API
+ */
+async function getMinecraftUUID(username: string): Promise<string | null> {
+  try {
+    const response = await fetch(`https://api.mojang.com/users/profiles/minecraft/${username}`);
+    if (!response.ok) {
+      console.warn(`Could not find UUID for Minecraft username: ${username}`);
+      return null;
+    }
+    const data = await response.json();
+    // Format UUID with dashes (Mojang returns without dashes)
+    const uuid = data.id;
+    return `${uuid.slice(0,8)}-${uuid.slice(8,12)}-${uuid.slice(12,16)}-${uuid.slice(16,20)}-${uuid.slice(20)}`;
+  } catch (error) {
+    console.error('Error fetching Minecraft UUID:', error);
+    return null;
+  }
+}
+
+/**
  * Fetch park stats by MBA user (converts minecraft_username to UUID if needed)
  */
 export async function fetchParkStatsByUser(user: User, season: number = 1): Promise<ParkStatsAggregated | null> {
-  // For now, we'll use the minecraft_username as the UUID
-  // In production, you might need a UUID lookup service
-  const uuid = user.minecraft_username || user.username;
+  // Convert Minecraft username to UUID
+  const uuid = await getMinecraftUUID(user.minecraft_username);
+  if (!uuid) {
+    console.warn(`Could not get UUID for user ${user.username} (Minecraft: ${user.minecraft_username})`);
+    return null;
+  }
   return fetchParkStatsAggregated(uuid, season);
 }
 
