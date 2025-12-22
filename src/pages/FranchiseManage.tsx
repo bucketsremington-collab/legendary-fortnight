@@ -59,8 +59,8 @@ export default function FranchiseManage() {
         setTeam(teamData);
         setRoster(membersData);
         setGames(gamesData);
-        // Filter free agents (users without team_id and with minecraft_username)
-        setFreeAgents(allUsers.filter(u => !u.team_id && u.minecraft_username));
+        // Filter free agents: no team, has minecraft_username, AND has discord_id (logged in)
+        setFreeAgents(allUsers.filter(u => !u.team_id && u.minecraft_username && u.discord_id));
       } catch (err) {
         console.error('Error loading team data:', err);
       } finally {
@@ -87,7 +87,7 @@ export default function FranchiseManage() {
         fetchUsers()
       ]);
       setRoster(membersData);
-      setFreeAgents(allUsers.filter(u => !u.team_id && u.minecraft_username));
+      setFreeAgents(allUsers.filter(u => !u.team_id && u.minecraft_username && u.discord_id));
       setShowSignModal(false);
     } else {
       setMessage({ type: 'error', text: result.message });
@@ -115,7 +115,7 @@ export default function FranchiseManage() {
         fetchUsers()
       ]);
       setRoster(membersData);
-      setFreeAgents(allUsers.filter(u => !u.team_id && u.minecraft_username));
+      setFreeAgents(allUsers.filter(u => !u.team_id && u.minecraft_username && u.discord_id));
     } else {
       setMessage({ type: 'error', text: result.message });
     }

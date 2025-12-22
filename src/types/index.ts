@@ -9,6 +9,7 @@ export interface User {
   team_id: string | null;
   role: 'player' | 'coach' | 'admin' | 'fan';
   minecraft_username: string;
+  discord_id?: string; // Discord user ID (format: discord-123456789)
   discord_roles?: string[]; // Array of Discord role IDs synced from MBA server
   created_at: string;
   updated_at: string;
