@@ -454,28 +454,28 @@ export default function Profile() {
             )}
 
             {/* Position roles next to team - check stored discord_roles for all users */}
-            {(isOwnProfile ? mbaRoles.isFranchiseOwner : hasDiscordRole(user, MBA_ROLE_IDS.FRANCHISE_OWNER)) && (
+            {hasDiscordRole(user, MBA_ROLE_IDS.FRANCHISE_OWNER) && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-yellow-500 to-amber-500 text-black text-xs font-bold rounded-full shadow-sm">
                 🏆 Franchise Owner
               </span>
             )}
-            {(isOwnProfile ? mbaRoles.isGeneralManager : hasDiscordRole(user, MBA_ROLE_IDS.GENERAL_MANAGER)) && (
+            {hasDiscordRole(user, MBA_ROLE_IDS.GENERAL_MANAGER) && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-orange-500 to-orange-400 text-white text-xs font-bold rounded-full shadow-sm">
                 📋 General Manager
               </span>
             )}
-            {(isOwnProfile ? mbaRoles.isHeadCoach : hasDiscordRole(user, MBA_ROLE_IDS.HEAD_COACH)) && (
+            {hasDiscordRole(user, MBA_ROLE_IDS.HEAD_COACH) && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-green-600 to-green-500 text-white text-xs font-bold rounded-full shadow-sm">
                 📢 Head Coach
               </span>
             )}
-            {(isOwnProfile ? mbaRoles.isAssistantCoach : hasDiscordRole(user, MBA_ROLE_IDS.ASSISTANT_COACH)) && (
+            {hasDiscordRole(user, MBA_ROLE_IDS.ASSISTANT_COACH) && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-teal-600 to-teal-500 text-white text-xs font-bold rounded-full shadow-sm">
                 🎯 Asst. Coach
               </span>
             )}
             {/* Fallback: show generic Coach badge if user has coach role but no discord_roles synced yet */}
-            {!isOwnProfile && user.role === 'coach' && !user.discord_roles?.length && (
+            {user.role === 'coach' && !user.discord_roles?.length && (
               <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-green-600 to-teal-500 text-white text-xs font-bold rounded-full shadow-sm">
                 🎯 Coach
               </span>
