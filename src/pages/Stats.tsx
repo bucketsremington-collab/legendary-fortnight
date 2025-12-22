@@ -24,11 +24,12 @@ export default function Stats() {
   const [parkStats, setParkStats] = useState<ParkGameStats[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(false);
   const [isDbConnected, setIsDbConnected] = useState(false);
 
-  // Load data on mount and when season or statsType changes
+  // Load initial data on mount (users, teams, connection check)
   useEffect(() => {
-    const loadData = async () => {
+    const loadInitialData = async () => {
       setIsLoading(true);
       
       // Check connection
@@ -37,32 +38,38 @@ export default function Stats() {
         setIsDbConnected(connected);
       }
       
-      if (statsType === 'park') {
-        // Fetch park stats
-        const [loadedUsers, loadedParkStats, loadedTeams] = await Promise.all([
-          fetchUsers(),
-          fetchAllParkStats(1),
-          fetchTeams()
-        ]);
-        setUsers(loadedUsers);
-        setParkStats(loadedParkStats);
-        setTeams(loadedTeams);
-      } else {
-        // Fetch season stats (will use DB if connected, otherwise mock data)
-        const [loadedUsers, loadedStats, loadedTeams] = await Promise.all([
-          fetchUsers(),
-          fetchPlayerStats(selectedSeason),
-          fetchTeams()
-        ]);
-        setUsers(loadedUsers);
-        setPlayerStats(loadedStats);
-        setTeams(loadedTeams);
-      }
+      // Load users and teams once
+      const [loadedUsers, loadedTeams] = await Promise.all([
+        fetchUsers(),
+        fetchTeams()
+      ]);
+      setUsers(loadedUsers);
+      setTeams(loadedTeams);
       
       setIsLoading(false);
     };
-    loadData();
-  }, [selectedSeason, statsType]);
+    loadInitialData();
+  }, []);
+
+  // Load stats data when season or statsType changes (smooth reload)
+  useEffect(() => {
+    const loadStatsData = async () => {
+      if (isLoading) return; // Skip if initial load not complete
+      
+      setIsDataLoading(true);
+      
+      if (statsType === 'park') {
+        const loadedParkStats = await fetchAllParkStats(1);
+        setParkStats(loadedParkStats);
+      } else {
+        const loadedStats = await fetchPlayerStats(selectedSeason);
+        setPlayerStats(loadedStats);
+      }
+      
+      setIsDataLoading(false);
+    };
+    loadStatsData();
+  }, [selectedSeason, statsType, isLoading]);
 
   // Helper to get team by ID
   const getTeam = (teamId: string | null) => {
@@ -331,7 +338,7 @@ export default function Stats() {
                 )}
               </tr>
             </thead>
-            <tbody>
+            <tbody className={`transition-opacity duration-300 ${isDataLoading ? 'opacity-50' : 'opacity-100'}`}>
               {sortedPlayers.map(({ player, stats, calculated, team }, index) => (
                 <tr key={player.id} className="border-b border-mc-border hover:bg-mc-surface-light transition-colors">
                   <td className="px-4 py-3 font-bold text-mc-text-muted">{index + 1}</td>
