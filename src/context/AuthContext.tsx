@@ -156,21 +156,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Cache keys and duration (5 minutes)
   const DISCORD_CACHE_KEY = 'mba_discord_cache';
-  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+  const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes in milliseconds (reduced for fresher role data)
+  const RATE_LIMITED_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes when rate limited to avoid hammering API
 
-  // Get cached Discord data
-  const getCachedDiscordData = () => {
+  // Get cached Discord data if still fresh
+  // acceptStale: allow older cache when rate limited (up to 10 minutes)
+  const getCachedDiscordData = (acceptStale = false) => {
     try {
       const cached = localStorage.getItem(DISCORD_CACHE_KEY);
       if (cached) {
         const data = JSON.parse(cached);
         const age = Date.now() - data.timestamp;
-        if (age < CACHE_DURATION) {
+        const maxAge = acceptStale ? RATE_LIMITED_CACHE_DURATION : CACHE_DURATION;
+        if (age < maxAge) {
           return data;
         }
       }
     } catch (e) {
-      console.warn('Failed to read Discord cache:', e);
+      console.warn('Failed to load Discord cache:', e);
     }
     return null;
   };
@@ -224,10 +227,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setDiscordGuilds(guilds);
         console.log('User guilds:', guilds.map(g => g.name));
       } else if (response.status === 429) {
-        console.warn('Rate limited by Discord API, using cached data if available');
-        const cached = getCachedDiscordData();
+        console.warn('Rate limited by Discord API, using stale cached data if available');
+        const cached = getCachedDiscordData(true); // Accept stale cache when rate limited
         if (cached?.guilds) {
           setDiscordGuilds(cached.guilds);
+          console.log('Using stale cache (age:', Math.round((Date.now() - cached.timestamp) / 1000), 'seconds) due to rate limit');
         }
       } else {
         console.error('Failed to fetch guilds:', response.status);
@@ -304,15 +308,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setMbaRoles(defaultMBARoles);
         return { memberInfo: null, parsedRoles: defaultMBARoles };
       } else if (memberResponse.status === 429) {
-        console.warn('Rate limited by Discord API for member info, using cached data');
-        const cached = getCachedDiscordData();
+        console.warn('Rate limited by Discord API for member info, using stale cached data');
+        const cached = getCachedDiscordData(true); // Accept stale cache when rate limited
         if (cached?.memberInfo) {
           setMbaServerMember(cached.memberInfo);
           if (cached.roles) {
             setMbaRoles(cached.roles);
           }
+          console.log('Using stale cache (age:', Math.round((Date.now() - cached.timestamp) / 1000), 'seconds) due to rate limit');
           return { memberInfo: cached.memberInfo, parsedRoles: cached.roles || defaultMBARoles };
         }
+        console.warn('No cached data available during rate limit - roles may not display');
       } else {
         console.error('Failed to fetch member info:', memberResponse.status);
       }
@@ -335,13 +341,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Force refresh Discord roles and get the fresh data immediately
     let freshMemberInfo: DiscordMemberInfo | null = mbaServerMember;
     let freshParsedRoles: MBARoles = mbaRoles;
+    let wasRateLimited = false;
     
     if (forceRefresh) {
       const result = await fetchMBAServerInfo(true);
       if (result) {
         freshMemberInfo = result.memberInfo;
         freshParsedRoles = result.parsedRoles;
+      } else {
+        // Check if we're using stale cached data due to rate limiting
+        const cached = getCachedDiscordData(true);
+        if (cached && cached.timestamp < Date.now() - CACHE_DURATION) {
+          wasRateLimited = true;
+          console.log('Using stale cached roles due to rate limiting');
+        }
       }
+    }
+
+    // If we have no member info at all, we can't sync
+    if (!freshMemberInfo) {
+      return { 
+        success: false, 
+        message: wasRateLimited 
+          ? 'Discord API rate limit - using cached roles' 
+          : 'Could not fetch Discord roles'
+      };
     }
 
     // Get all Discord role IDs from the FRESH member info

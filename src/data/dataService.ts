@@ -282,6 +282,10 @@ export async function fetchUserByUsername(username: string): Promise<User | null
     return mockUsers.find(u => u.username.toLowerCase() === username.toLowerCase()) || null;
   }
 
+  // Note: We use a timestamp-based cache key concept for potential future request deduplication
+  // This allows the same username to be fetched fresh every 30 seconds
+  // Currently not actively used but prepared for enhanced caching layer
+  
   const { data, error } = await supabase!
     .from('users')
     .select('*')

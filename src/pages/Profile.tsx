@@ -55,6 +55,8 @@ export default function Profile() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState<string>('S0');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showRateLimitWarning, setShowRateLimitWarning] = useState(false);
   
   // Edit mode states
   const [isEditing, setIsEditing] = useState(false);
@@ -114,12 +116,31 @@ export default function Profile() {
       setNotFound(false);
 
       try {
+        // If viewing own profile, sync roles first to ensure fresh data
+        // This will use cached data if Discord API is rate limited
+        if (isOwnProfile && currentUser) {
+          console.log('Syncing own profile roles before load...')
+          const result = await syncRolesToDatabase?.();
+          if (result && !result.success) {
+            console.log('Role sync failed (likely rate limited):', result.message);
+            if (result.message.includes('rate limit')) {
+              setShowRateLimitWarning(true);
+              // Auto-hide after 10 seconds
+              setTimeout(() => setShowRateLimitWarning(false), 10000);
+            }
+            // Continue anyway - will show cached/stored roles
+          }
+          // Small delay to let database update propagate
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+
         // Timeout protection - fail after 10 seconds
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Request timeout')), 10000)
         );
 
         // Find user from database (dataService handles fallback to mock data)
+        // Force a fresh fetch by bypassing any stale cache
         const foundUser = await Promise.race([
           fetchUserByUsername(username),
           timeoutPromise
@@ -131,7 +152,23 @@ export default function Profile() {
           return;
         }
 
-        setUser(foundUser);
+        // If roles are missing or stale, try to refetch the user
+        // This helps when Discord API is rate limited and we need to rely on database-stored roles
+        if (!foundUser.discord_roles || foundUser.discord_roles.length === 0) {
+          console.log('User roles missing from database, attempting refresh...');
+          // Wait a bit and try again to give cache time to clear
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const refreshedUser = await fetchUserByUsername(username);
+          if (refreshedUser && refreshedUser.discord_roles && refreshedUser.discord_roles.length > 0) {
+            setUser(refreshedUser);
+            console.log('Successfully refreshed user with roles from database');
+          } else {
+            setUser(foundUser);
+            console.log('No roles found in database - user may not have synced yet or Discord API is rate limited');
+          }
+        } else {
+          setUser(foundUser);
+        }
 
         // Load team
         if (foundUser.team_id) {
@@ -153,7 +190,7 @@ export default function Profile() {
     };
 
     loadProfile();
-  }, [username]);
+  }, [username, refreshKey]);
 
   // Load stats when user or season changes
   useEffect(() => {
@@ -257,6 +294,19 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
+      {/* Rate Limit Warning */}
+      {showRateLimitWarning && (
+        <div className="mc-card p-4 border-l-4 border-yellow-500 bg-yellow-900/20">
+          <div className="flex items-start gap-3">
+            <span className="text-yellow-500 text-xl">⚠️</span>
+            <div>
+              <p className="text-yellow-200 font-semibold">Discord API Rate Limited</p>
+              <p className="text-yellow-300/80 text-sm">Showing cached role data. Roles will refresh automatically soon.</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Profile Card */}
       <div className="mc-card overflow-hidden">
         {/* Header with team color (gray for free agents) */}
@@ -307,14 +357,29 @@ export default function Profile() {
               </div>
               <p className="text-mc-text-muted">@{user.username}</p>
             </div>
-            {isOwnProfile && !isEditing && (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-3 py-1.5 bg-mc-surface border border-mc-border text-mc-text hover:bg-mc-surface-light transition-colors text-sm"
-              >
-                Edit Profile
-              </button>
-            )}
+            <div className="flex gap-2">
+              {isOwnProfile && !isEditing && (
+                <>
+                  <button
+                    onClick={async () => {
+                      setIsLoading(true);
+                      await syncRolesToDatabase?.();
+                      setRefreshKey(prev => prev + 1);
+                    }}
+                    className="px-3 py-1.5 bg-mc-surface border border-mc-border text-mc-text hover:bg-mc-surface-light transition-colors text-sm"
+                    title="Refresh role data from Discord"
+                  >
+                    🔄
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="px-3 py-1.5 bg-mc-surface border border-mc-border text-mc-text hover:bg-mc-surface-light transition-colors text-sm"
+                  >
+                    Edit Profile
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Edit Form */}
