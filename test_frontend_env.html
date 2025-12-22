@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Park Stats Environment Test</title>
+</head>
+<body>
+    <h1>Testing Park Stats Configuration</h1>
+    <div id="results"></div>
+
+    <script type="module">
+        const results = document.getElementById('results');
+        
+        // Test 1: Check if running in dev or production
+        results.innerHTML += `<h2>Environment:</h2>`;
+        results.innerHTML += `<p>Mode: ${import.meta.env.MODE}</p>`;
+        results.innerHTML += `<p>Dev: ${import.meta.env.DEV}</p>`;
+        
+        // Test 2: Check environment variables
+        results.innerHTML += `<h2>Environment Variables:</h2>`;
+        results.innerHTML += `<p>VITE_PARK_STATS_API: ${import.meta.env.VITE_PARK_STATS_API || 'MISSING'}</p>`;
+        results.innerHTML += `<p>VITE_SUPABASE_ANON_KEY: ${import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Present (' + import.meta.env.VITE_SUPABASE_ANON_KEY.substring(0, 20) + '...)' : 'MISSING'}</p>`;
+        
+        // Test 3: Try to fetch
+        const PARK_STATS_API = import.meta.env.VITE_PARK_STATS_API || '/api/park-stats';
+        const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+        
+        results.innerHTML += `<h2>Testing Edge Function:</h2>`;
+        results.innerHTML += `<p>Testing with username: posterizing</p>`;
+        
+        const url = `${PARK_STATS_API}/posterizing?season=1`;
+        results.innerHTML += `<p>URL: ${url}</p>`;
+        
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'apikey': SUPABASE_ANON_KEY,
+                }
+            });
+            
+            results.innerHTML += `<p>Status: ${response.status} ${response.statusText}</p>`;
+            results.innerHTML += `<p>Content-Type: ${response.headers.get('content-type')}</p>`;
+            
+            const text = await response.text();
+            
+            if (response.ok) {
+                try {
+                    const json = JSON.parse(text);
+                    results.innerHTML += `<h3>✓ Success!</h3>`;
+                    results.innerHTML += `<pre>${JSON.stringify(json, null, 2)}</pre>`;
+                } catch (e) {
+                    results.innerHTML += `<h3>✗ Response is not JSON</h3>`;
+                    results.innerHTML += `<pre>${text.substring(0, 500)}</pre>`;
+                }
+            } else {
+                results.innerHTML += `<h3>✗ Error Response</h3>`;
+                results.innerHTML += `<pre>${text.substring(0, 500)}</pre>`;
+            }
+        } catch (error) {
+            results.innerHTML += `<h3>✗ Fetch Error</h3>`;
+            results.innerHTML += `<p>${error.message}</p>`;
+        }
+    </script>
+</body>
+</html>

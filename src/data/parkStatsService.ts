@@ -53,7 +53,7 @@ export interface ParkStatsAggregated {
   win_percentage: number;
 }
 
-// API endpoint - this will need to be set up as a Supabase Edge Function or separate backend
+// API endpoint - Supabase Edge Function for park stats
 const PARK_STATS_API = import.meta.env.VITE_PARK_STATS_API || '/api/park-stats';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
