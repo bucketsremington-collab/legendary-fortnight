@@ -74,16 +74,20 @@ export default function Stats() {
   const playersWithStats = statsType === 'park'
     ? parkStats.map(ps => {
         const user = users.find(u => u.minecraft_uuid === ps.player_uuid);
+        const team = getTeam(user?.team_id || null);
         return {
-          ...user,
-          id: user?.id || ps.player_uuid,
-          minecraft_username: ps.player_name,
-          minecraft_uuid: ps.player_uuid,
+          player: {
+            id: user?.id || ps.player_uuid,
+            username: user?.username || ps.player_name,
+            minecraft_username: ps.player_name,
+            minecraft_uuid: ps.player_uuid,
+            team_id: user?.team_id || null,
+          },
           stats: {
             games_played: ps.games_played,
             games_won: ps.wins,
             games_lost: ps.losses,
-            points: ps.points,
+            points_scored: ps.points,
             assists: ps.assists,
             rebounds: ps.rebounds,
             steals: ps.steals,
@@ -94,7 +98,7 @@ export default function Stats() {
             three_fg_made: ps.three_fg_made,
             three_fg_attempted: ps.three_fg_attempted,
           },
-          calculatedStats: {
+          calculated: {
             ppg: ps.games_played > 0 ? ps.points / ps.games_played : 0,
             apg: ps.games_played > 0 ? ps.assists / ps.games_played : 0,
             rpg: ps.games_played > 0 ? ps.rebounds / ps.games_played : 0,
@@ -103,7 +107,8 @@ export default function Stats() {
             tpg: ps.games_played > 0 ? ps.turnovers / ps.games_played : 0,
             fg_pct: ps.fg_attempted > 0 ? (ps.fg_made / ps.fg_attempted) * 100 : 0,
             three_pct: ps.three_fg_attempted > 0 ? (ps.three_fg_made / ps.three_fg_attempted) * 100 : 0,
-          }
+          },
+          team
         };
       }).filter(p => p.stats.games_played > 0)
     : users
