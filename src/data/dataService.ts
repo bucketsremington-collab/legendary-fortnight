@@ -1,6 +1,6 @@
 // Data service that uses Supabase when configured, falls back to mock data
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Team, User, PlayerStats, Game, Accolade } from '../types';
+import { Team, User, PlayerStats, Game, Accolade, DiscordLink } from '../types';
 import {
   mockTeams,
   mockUsers,
@@ -639,6 +639,89 @@ export async function fetchNews(): Promise<NewsItem[]> {
       is_pinned: news.is_pinned,
     }));
   });
+}
+
+// ============================================
+// DISCORD LINKS
+// ============================================
+export async function fetchDiscordLinkByDiscordId(discordId: string): Promise<DiscordLink | null> {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase!
+      .from('discord_links')
+      .select('*')
+      .eq('discord_id', discordId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching Discord link:', error);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Error fetching Discord link:', err);
+    return null;
+  }
+}
+
+export async function fetchDiscordLinkByMinecraftUsername(minecraftUsername: string): Promise<DiscordLink | null> {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase!
+      .from('discord_links')
+      .select('*')
+      .eq('minecraft_username', minecraftUsername)
+      .single();
+
+    if (error) {
+      console.error('Error fetching Discord link by Minecraft username:', error);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Error fetching Discord link by Minecraft username:', err);
+    return null;
+  }
+}
+
+export async function validateMinecraftUsernameForUser(minecraftUsername: string, discordId: string): Promise<{valid: boolean; message: string; linkedUsername?: string}> {
+  if (!isSupabaseConfigured()) {
+    return { valid: true, message: 'Validation skipped in demo mode' };
+  }
+
+  try {
+    // Get the user's linked Minecraft account
+    const userLink = await fetchDiscordLinkByDiscordId(discordId);
+    
+    if (!userLink) {
+      return { 
+        valid: false, 
+        message: 'No Minecraft account linked to your Discord. Please link your account first.' 
+      };
+    }
+
+    // Check if the provided username matches their linked account
+    if (userLink.minecraft_username.toLowerCase() !== minecraftUsername.toLowerCase()) {
+      return { 
+        valid: false, 
+        message: `This Minecraft account is not linked to your Discord. Your linked account is: ${userLink.minecraft_username}`,
+        linkedUsername: userLink.minecraft_username
+      };
+    }
+
+    return { valid: true, message: 'Validated', linkedUsername: userLink.minecraft_username };
+  } catch (err) {
+    console.error('Error validating Minecraft username:', err);
+    return { valid: false, message: 'Error validating account' };
+  }
 }
 
 // ============================================

@@ -70,22 +70,25 @@ export default function Stats() {
     return teams.find(t => t.id === teamId);
   };
 
-  // Get all users with stats
+  // Get all users with stats - ONLY INCLUDE USERS WHO ARE LOGGED IN (have user account)
   const playersWithStats = statsType === 'park'
     ? parkStats.map(ps => {
         const user = users.find(u => u.minecraft_username.toLowerCase() === ps.player_name.toLowerCase());
+        // Skip if no user account found (not logged in)
+        if (!user) return null;
+        
         const team = getTeam(user?.team_id || null);
         return {
           player: {
-            id: user?.id || ps.player_uuid,
-            username: user?.username || ps.player_name,
+            id: user.id,
+            username: user.username,
             minecraft_username: ps.player_name,
             minecraft_uuid: ps.player_uuid,
-            team_id: user?.team_id || null,
+            team_id: user.team_id,
           },
           stats: {
             id: '',
-            user_id: user?.id || ps.player_uuid,
+            user_id: user.id,
             season: 'S1',
             games_played: ps.games_played,
             games_won: ps.wins,
@@ -119,7 +122,7 @@ export default function Stats() {
           },
           team
         };
-      }).filter(p => p.stats.games_played > 0)
+      }).filter((p): p is NonNullable<typeof p> => p !== null && p.stats.games_played > 0)
     : users
     .map(player => {
       const stats = playerStats.find(s => s.user_id === player.id);

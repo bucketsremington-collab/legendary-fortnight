@@ -6,6 +6,8 @@ import {
   fetchPlayerStatsByUserIdAndSeason,
   fetchAccoladesByUserId,
   updateUser,
+  fetchDiscordLinkByDiscordId,
+  validateMinecraftUsernameForUser,
 } from '../data/dataService';
 import { useAuth, MBA_ROLE_IDS } from '../context/AuthContext';
 import { calculateStats } from '../utils/helpers';
@@ -60,6 +62,8 @@ export default function Profile() {
   const [editMinecraftUsername, setEditMinecraftUsername] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
+  const [minecraftValidationError, setMinecraftValidationError] = useState('');
+  const [linkedMinecraftUsername, setLinkedMinecraftUsername] = useState<string | null>(null);
   
   // Sync roles state
   const [isSyncing, setIsSyncing] = useState(false);
@@ -74,6 +78,26 @@ export default function Profile() {
   const isOwnProfile = currentUser?.id === user?.id || 
                        currentUser?.username.toLowerCase() === username?.toLowerCase() ||
                        currentUser?.minecraft_username.toLowerCase() === username?.toLowerCase();
+
+  // Auto-detect linked Minecraft username when editing
+  useEffect(() => {
+    const detectLinkedAccount = async () => {
+      if (isEditing && isOwnProfile && currentUser?.id) {
+        // Get Discord ID from Supabase auth user metadata
+        const { data: { user: authUser } } = await (await import('../lib/supabase')).supabase.auth.getUser();
+        const discordId = authUser?.user_metadata?.provider_id;
+        
+        if (discordId) {
+          const link = await fetchDiscordLinkByDiscordId(discordId);
+          if (link) {
+            setLinkedMinecraftUsername(link.minecraft_username);
+            setEditMinecraftUsername(link.minecraft_username);
+          }
+        }
+      }
+    };
+    detectLinkedAccount();
+  }, [isEditing, isOwnProfile, currentUser]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -138,6 +162,23 @@ export default function Profile() {
     
     setIsSaving(true);
     setSaveMessage('');
+    setMinecraftValidationError('');
+
+    // Validate Minecraft username if changed
+    if (editMinecraftUsername !== user.minecraft_username) {
+      const { data: { user: authUser } } = await (await import('../lib/supabase')).supabase.auth.getUser();
+      const discordId = authUser?.user_metadata?.provider_id;
+      
+      if (discordId) {
+        const validation = await validateMinecraftUsernameForUser(editMinecraftUsername, discordId);
+        if (!validation.valid) {
+          setMinecraftValidationError(validation.message);
+          setSaveMessage('Validation failed');
+          setIsSaving(false);
+          return;
+        }
+      }
+    }
 
     const updates: Partial<User> = {
       bio: editBio,
@@ -256,13 +297,33 @@ export default function Profile() {
             <div className="mb-4 p-4 bg-mc-darker border border-mc-border rounded space-y-4">
               <div>
                 <label className="block text-mc-text-muted text-sm mb-1">Minecraft Username</label>
+                {linkedMinecraftUsername && (
+                  <div className="mb-2 text-xs text-green-400 flex items-center gap-1">
+                    <span>✓</span>
+                    <span>Linked account: <strong>{linkedMinecraftUsername}</strong></span>
+                  </div>
+                )}
                 <input
                   type="text"
                   value={editMinecraftUsername}
-                  onChange={(e) => setEditMinecraftUsername(e.target.value)}
-                  className="w-full px-3 py-2 bg-mc-surface border border-mc-border text-mc-text rounded focus:outline-none focus:border-mc-accent"
+                  onChange={(e) => {
+                    setEditMinecraftUsername(e.target.value);
+                    setMinecraftValidationError('');
+                  }}
+                  className={`w-full px-3 py-2 bg-mc-surface border text-mc-text rounded focus:outline-none focus:border-mc-accent ${minecraftValidationError ? 'border-red-500' : 'border-mc-border'}`}
                   placeholder="Your Minecraft username"
+                  disabled={!!linkedMinecraftUsername}
                 />
+                {minecraftValidationError && (
+                  <div className="mt-1 text-xs text-red-400">
+                    {minecraftValidationError}
+                  </div>
+                )}
+                {linkedMinecraftUsername && (
+                  <div className="mt-1 text-xs text-mc-text-muted">
+                    This field is locked to your Discord-linked account
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-mc-text-muted text-sm mb-1">Bio</label>

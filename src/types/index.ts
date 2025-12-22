@@ -14,6 +14,15 @@ export interface User {
   updated_at: string;
 }
 
+export interface DiscordLink {
+  minecraft_uuid: string;
+  minecraft_username: string;
+  discord_id: string;
+  discord_username: string;
+  discord_tag: string;
+  linked_at: string;
+}
+
 export interface Team {
   id: string;
   name: string;
