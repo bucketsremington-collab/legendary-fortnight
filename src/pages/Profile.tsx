@@ -67,10 +67,6 @@ export default function Profile() {
   const [minecraftValidationError, setMinecraftValidationError] = useState('');
   const [linkedMinecraftUsername, setLinkedMinecraftUsername] = useState<string | null>(null);
   
-  // Sync roles state
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncMessage, setSyncMessage] = useState('');
-  
   // Stats display mode (average or total)
   const [showTotals, setShowTotals] = useState(false);
   // Stats type (Season vs Park/Rec)
@@ -525,39 +521,6 @@ export default function Profile() {
             </svg>
             <span>{user.username}</span>
           </div>
-          
-          {/* Sync Roles Button - only show on own profile if in MBA server */}
-          {isOwnProfile && isInMBAServer && (
-            <div className="flex items-center gap-3 mb-4">
-              <button
-                onClick={async () => {
-                  setIsSyncing(true);
-                  setSyncMessage('');
-                  const result = await syncRolesToDatabase();
-                  setSyncMessage(result.message);
-                  setIsSyncing(false);
-                  
-                  // Reload profile data if sync was successful
-                  if (result.success && result.message !== 'Already synced - no changes needed') {
-                    // Refresh the page data
-                    window.location.reload();
-                  }
-                }}
-                disabled={isSyncing}
-                className="px-3 py-1.5 bg-[#5865F2] hover:bg-[#4752C4] text-white text-sm font-bold rounded transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                <svg className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                {isSyncing ? 'Syncing...' : 'Sync Discord Roles'}
-              </button>
-              {syncMessage && (
-                <span className={`text-sm ${syncMessage.includes('Failed') ? 'text-red-500' : 'text-green-500'}`}>
-                  {syncMessage}
-                </span>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
