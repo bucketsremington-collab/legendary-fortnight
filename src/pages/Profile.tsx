@@ -47,7 +47,7 @@ function TeamLogo({ team, size = 40 }: { team: Team, size?: number }) {
 
 export default function Profile() {
   const { username } = useParams<{ username: string }>();
-  const { user: currentUser, mbaRoles, syncRolesToDatabase } = useAuth();
+  const { user: currentUser, syncRolesToDatabase } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [stats, setStats] = useState<PlayerStats | null>(null);
@@ -330,25 +330,25 @@ export default function Profile() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-bold text-mc-text">{user.minecraft_username}</h1>
-                {/* Staff badges - check stored discord_roles for all users */}
-                {/* For own profile, use mbaRoles (live), for others use stored discord_roles */}
-                {(isOwnProfile ? mbaRoles.isOwner : hasDiscordRole(user, MBA_ROLE_IDS.OWNER)) && (
+                {/* Staff badges - always use stored discord_roles from database */}
+                {/* This ensures roles display even when Discord API is rate limited or unavailable */}
+                {hasDiscordRole(user, MBA_ROLE_IDS.OWNER) && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-red-600 to-red-500 text-white text-xs font-bold rounded-full shadow-sm">
                     👑 OWNER
                   </span>
                 )}
-                {(isOwnProfile ? mbaRoles.isDeveloper : hasDiscordRole(user, MBA_ROLE_IDS.DEVELOPER)) && (
+                {hasDiscordRole(user, MBA_ROLE_IDS.DEVELOPER) && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white text-xs font-bold rounded-full shadow-sm">
                     💻 DEV
                   </span>
                 )}
-                {(isOwnProfile ? mbaRoles.isModerator : hasDiscordRole(user, MBA_ROLE_IDS.MODERATOR)) && (
+                {hasDiscordRole(user, MBA_ROLE_IDS.MODERATOR) && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-xs font-bold rounded-full shadow-sm">
                     🛡️ MOD
                   </span>
                 )}
                 {/* Fallback: show generic STAFF badge if user has admin role but no discord_roles synced yet */}
-                {!isOwnProfile && user.role === 'admin' && !user.discord_roles?.length && (
+                {user.role === 'admin' && !user.discord_roles?.length && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-red-600 to-orange-500 text-white text-xs font-bold rounded-full shadow-sm">
                     ⭐ STAFF
                   </span>
