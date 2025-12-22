@@ -11,7 +11,6 @@ import Stats from './pages/Stats';
 import Games from './pages/Games';
 import FreeAgents from './pages/FreeAgents';
 import StatsAdmin from './pages/StatsAdmin';
-import FranchiseManage from './pages/FranchiseManage';
 import AuthCallback from './pages/AuthCallback';
 
 function AppRoutes() {
@@ -46,7 +45,6 @@ function AppRoutes() {
       <Route path="/games" element={<Layout><Games /></Layout>} />
       <Route path="/free-agents" element={<Layout><FreeAgents /></Layout>} />
       <Route path="/admin/stats" element={<Layout><StatsAdmin /></Layout>} />
-      <Route path="/franchise" element={<Layout><FranchiseManage /></Layout>} />
     </Routes>
   );
 }
