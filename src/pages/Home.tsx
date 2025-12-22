@@ -66,6 +66,7 @@ export default function Home() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [freeAgentUsers, setFreeAgentUsers] = useState<Map<string, User>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [lastLoadTime, setLastLoadTime] = useState<number>(0);
 
   useEffect(() => {
     async function loadData() {
@@ -93,7 +94,7 @@ export default function Home() {
       try {
         // Add timeout to prevent infinite loading
         const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Data fetch timeout')), 5000)
+          setTimeout(() => reject(new Error('Data fetch timeout')), 15000)
         );
         
         const dataPromise = Promise.all([
@@ -116,11 +117,13 @@ export default function Home() {
         setTeams(teamsData);
         
         // Cache news and games
+        const now = Date.now();
         localStorage.setItem('mba_home_data', JSON.stringify({
           news: newsData,
           games: gamesData,
-          timestamp: Date.now()
+          timestamp: now
         }));
+        setLastLoadTime(now);
 
         // Pre-fetch users for free agent listings (with timeout)
         const faUsers = new Map<string, User>();
@@ -164,7 +167,25 @@ export default function Home() {
       }
     }
     loadData();
-  }, []);
+    
+    // Auto-refresh when page becomes visible after being idle
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && lastLoadTime > 0) {
+        const timeSinceLoad = Date.now() - lastLoadTime;
+        // If page was idle for more than 5 minutes, refresh data
+        if (timeSinceLoad > 5 * 60 * 1000) {
+          console.log('Page was idle, refreshing home data...');
+          loadData();
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [lastLoadTime]);
 
   const getTeamById = (id: string) => teams.find(t => t.id === id);
   
