@@ -3,6 +3,7 @@ from discord.ext import commands
 import os
 from dotenv import load_dotenv
 from database import init_database, get_connection
+from api_server import start_api_server
 
 # Load environment variables
 load_dotenv()
@@ -43,6 +44,9 @@ async def on_ready():
     print(f'{bot.user} has connected to Discord!')
     print(f'Bot is in {len(bot.guilds)} guild(s)')
     await bot.change_presence(activity=discord.Game(name="Minecraft Basketball Association"))
+    
+    # Start API server for web app integration
+    start_api_server(bot)
 
 @bot.event
 async def on_member_join(member):
