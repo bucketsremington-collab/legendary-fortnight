@@ -438,6 +438,20 @@ export default function Profile() {
                 Park/Rec
               </button>
             </div>
+            {/* Season Dropdown - always visible */}
+            <select
+              value={selectedSeason}
+              onChange={(e) => setSelectedSeason(e.target.value)}
+              title="Select season"
+              className="px-3 py-1 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
+              disabled={statsType === 'park'}
+            >
+              {AVAILABLE_SEASONS.map(season => (
+                <option key={season} value={season}>
+                  Season {season.replace('S', '')}
+                </option>
+              ))}
+            </select>
             {/* Averages/Totals Toggle */}
             <div className="inline-flex rounded-md overflow-hidden">
               <button
@@ -461,20 +475,6 @@ export default function Profile() {
                 Totals
               </button>
             </div>
-            {statsType === 'season' && (
-              <select
-                value={selectedSeason}
-                onChange={(e) => setSelectedSeason(e.target.value)}
-                title="Select season"
-                className="px-3 py-1 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
-              >
-                {AVAILABLE_SEASONS.map(season => (
-                  <option key={season} value={season}>
-                    Season {season.replace('S', '')}
-                  </option>
-                ))}
-              </select>
-            )}
           </div>
         </div>
         
