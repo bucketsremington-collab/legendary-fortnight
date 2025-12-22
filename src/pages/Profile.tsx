@@ -47,7 +47,7 @@ function TeamLogo({ team, size = 40 }: { team: Team, size?: number }) {
 
 export default function Profile() {
   const { username } = useParams<{ username: string }>();
-  const { user: currentUser, mbaRoles, isInMBAServer, syncRolesToDatabase } = useAuth();
+  const { user: currentUser, mbaRoles, syncRolesToDatabase } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [stats, setStats] = useState<PlayerStats | null>(null);
