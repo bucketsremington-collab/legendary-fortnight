@@ -247,21 +247,19 @@ export default function Stats() {
                 Totals
               </button>
             </div>
-            {/* Season Dropdown */}
-            {statsType === 'season' && (
-              <select
-                value={selectedSeason}
-                onChange={(e) => setSelectedSeason(e.target.value)}
-                title="Select season"
-                className="px-2 py-1.5 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
-              >
-                {AVAILABLE_SEASONS.map(season => (
-                  <option key={season} value={season}>
-                    Season {season.replace('S', '')}
-                  </option>
-                ))}
-              </select>
-            )}
+            {/* Season Dropdown - always available for both season and park */}
+            <select
+              value={selectedSeason}
+              onChange={(e) => setSelectedSeason(e.target.value)}
+              title="Select season"
+              className="px-2 py-1.5 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
+            >
+              {AVAILABLE_SEASONS.map(season => (
+                <option key={season} value={season}>
+                  Season {season.replace('S', '')}
+                </option>
+              ))}
+            </select>
             <div className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap ${isDbConnected ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'}`}>
               {isDbConnected ? 'Live' : 'Demo'}
             </div>

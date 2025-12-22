@@ -505,13 +505,12 @@ export default function Profile() {
                 Park/Rec
               </button>
             </div>
-            {/* Season Dropdown - always visible */}
+            {/* Season Dropdown - always visible for both season and park */}
             <select
               value={selectedSeason}
               onChange={(e) => setSelectedSeason(e.target.value)}
               title="Select season"
               className="px-3 py-1 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
-              disabled={statsType === 'park'}
             >
               {AVAILABLE_SEASONS.map(season => (
                 <option key={season} value={season}>
@@ -614,6 +613,18 @@ export default function Profile() {
                       {showTotals ? stats.turnovers : calculated.tpg.toFixed(1)}
                     </div>
                     <div className="text-xs text-mc-text-muted">TO</div>
+                  </div>
+                  <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
+                    <div className="text-lg font-bold text-mc-text">
+                      {calculated.fg_pct.toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-mc-text-muted">FG%</div>
+                  </div>
+                  <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
+                    <div className="text-lg font-bold text-mc-text">
+                      {calculated.three_pct.toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-mc-text-muted">3P%</div>
                   </div>
                 </div>
               </div>
