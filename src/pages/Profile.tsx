@@ -56,7 +56,6 @@ export default function Profile() {
   const [notFound, setNotFound] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState<string>('S0');
   const [refreshKey, setRefreshKey] = useState(0);
-  const [showRateLimitWarning, setShowRateLimitWarning] = useState(false);
   
   // Edit mode states
   const [isEditing, setIsEditing] = useState(false);
@@ -112,30 +111,9 @@ export default function Profile() {
       setNotFound(false);
 
       try {
-        // If viewing own profile, sync roles first to ensure fresh data
-        // This will use cached data if Discord API is rate limited
-        if (isOwnProfile && currentUser && syncRolesToDatabase) {
-          console.log('Syncing own profile roles before load...')
-          const result = await syncRolesToDatabase();
-          if (result && !result.success) {
-            console.log('Role sync result:', result.message);
-            // Only show warning if it's actually a rate limit, not just "not in server"
-            if (result.message.includes('rate limit')) {
-              setShowRateLimitWarning(true);
-              // Auto-hide after 10 seconds
-              setTimeout(() => setShowRateLimitWarning(false), 10000);
-            }
-            // Continue anyway - will show cached/stored roles
-          }
-          // Small delay to let database update propagate if sync was successful
-          if (result?.success) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-          }
-        }
-
-        // Timeout protection - fail after 10 seconds
+        // Timeout protection - fail after 20 seconds
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 10000)
+          setTimeout(() => reject(new Error('Request timeout')), 20000)
         );
 
         // Find user from database (dataService handles fallback to mock data)
@@ -293,19 +271,6 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
-      {/* Rate Limit Warning */}
-      {showRateLimitWarning && (
-        <div className="mc-card p-4 border-l-4 border-yellow-500 bg-yellow-900/20">
-          <div className="flex items-start gap-3">
-            <span className="text-yellow-500 text-xl">⚠️</span>
-            <div>
-              <p className="text-yellow-200 font-semibold">Discord API Rate Limited</p>
-              <p className="text-yellow-300/80 text-sm">Showing cached role data. Roles will refresh automatically soon.</p>
-            </div>
-          </div>
-        </div>
-      )}
-      
       {/* Profile Card */}
       <div className="mc-card overflow-hidden">
         {/* Header with team color (gray for free agents) */}
