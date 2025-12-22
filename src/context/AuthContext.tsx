@@ -334,10 +334,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, message: 'Not logged in' };
     }
 
-    if (!isInMBAServer) {
-      return { success: false, message: 'Not a member of the MBA Discord server' };
-    }
-
     // Force refresh Discord roles and get the fresh data immediately
     let freshMemberInfo: DiscordMemberInfo | null = mbaServerMember;
     let freshParsedRoles: MBARoles = mbaRoles;
@@ -354,17 +350,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cached && cached.timestamp < Date.now() - CACHE_DURATION) {
           wasRateLimited = true;
           console.log('Using stale cached roles due to rate limiting');
+          // Use cached member info if available
+          if (cached.memberInfo) {
+            freshMemberInfo = cached.memberInfo;
+            freshParsedRoles = cached.roles || mbaRoles;
+          }
         }
       }
     }
 
-    // If we have no member info at all, we can't sync
+    // If we have no member info at all, user is not in MBA server
     if (!freshMemberInfo) {
       return { 
         success: false, 
         message: wasRateLimited 
           ? 'Discord API rate limit - using cached roles' 
-          : 'Could not fetch Discord roles'
+          : 'Not a member of the MBA Discord server'
       };
     }
 

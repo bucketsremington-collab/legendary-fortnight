@@ -114,11 +114,12 @@ export default function Profile() {
       try {
         // If viewing own profile, sync roles first to ensure fresh data
         // This will use cached data if Discord API is rate limited
-        if (isOwnProfile && currentUser) {
+        if (isOwnProfile && currentUser && syncRolesToDatabase) {
           console.log('Syncing own profile roles before load...')
-          const result = await syncRolesToDatabase?.();
+          const result = await syncRolesToDatabase();
           if (result && !result.success) {
-            console.log('Role sync failed (likely rate limited):', result.message);
+            console.log('Role sync result:', result.message);
+            // Only show warning if it's actually a rate limit, not just "not in server"
             if (result.message.includes('rate limit')) {
               setShowRateLimitWarning(true);
               // Auto-hide after 10 seconds
@@ -126,8 +127,10 @@ export default function Profile() {
             }
             // Continue anyway - will show cached/stored roles
           }
-          // Small delay to let database update propagate
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Small delay to let database update propagate if sync was successful
+          if (result?.success) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
         }
 
         // Timeout protection - fail after 10 seconds
