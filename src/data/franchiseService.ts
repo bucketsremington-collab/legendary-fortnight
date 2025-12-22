@@ -1,13 +1,17 @@
 import { supabase } from '../lib/supabase';
 
-export interface TeamAction {
-  type: 'sign' | 'release' | 'trade' | 'offer';
+export interface TransactionHistory {
+  guild_id: string;
+  transaction_type: 'sign' | 'release' | 'trade' | 'demand' | 'offer';
   player_id: string;
-  team_id: string;
-  coach_id: string;
-  details?: any;
+  from_team_id?: string;
+  to_team_id?: string;
+  performed_by: string;
+  notes?: string;
   created_at: string;
 }
+
+const GUILD_ID = import.meta.env.VITE_MBA_DISCORD_SERVER_ID;
 
 /**
  * Sign a player to a team
@@ -46,14 +50,20 @@ export async function signPlayer(teamId: string, playerId: string, coachId: stri
 
     if (error) throw error;
 
-    // Log the action
-    await logTeamAction({
-      type: 'sign',
+    // Log to transaction_history
+    await logTransaction({
+      guild_id: GUILD_ID,
+      transaction_type: 'sign',
       player_id: playerId,
-      team_id: teamId,
-      coach_id: coachId,
+      from_team_id: undefined,
+      to_team_id: teamId,
+      performed_by: coachId,
+      notes: 'Player signed via web app',
       created_at: new Date().toISOString()
     });
+
+    // Sync Discord role
+    await syncDiscordRole('add', playerId, teamId);
 
     // Send Discord notification
     await sendDiscordNotification('sign', {
@@ -103,14 +113,20 @@ export async function releasePlayer(teamId: string, playerId: string, coachId: s
 
     const rosterCount = roster?.length || 0;
 
-    // Log the action
-    await logTeamAction({
-      type: 'release',
+    // Log to transaction_history
+    await logTransaction({
+      guild_id: GUILD_ID,
+      transaction_type: 'release',
       player_id: playerId,
-      team_id: teamId,
-      coach_id: coachId,
+      from_team_id: teamId,
+      to_team_id: undefined,
+      performed_by: coachId,
+      notes: 'Player released via web app',
       created_at: new Date().toISOString()
     });
+
+    // Sync Discord role
+    await syncDiscordRole('remove', playerId, teamId);
 
     // Send Discord notification
     await sendDiscordNotification('release', {
@@ -129,25 +145,74 @@ export async function releasePlayer(teamId: string, playerId: string, coachId: s
 }
 
 /**
- * Log team action to database
+ * Log transaction to transaction_history table
  */
-async function logTeamAction(action: TeamAction) {
+async function logTransaction(transaction: TransactionHistory) {
   try {
     await supabase!
-      .from('team_actions')
-      .insert(action);
+      .from('transaction_history')
+      .insert(transaction);
   } catch (error) {
-    console.error('Error logging team action:', error);
+    console.error('Error logging transaction:', error);
   }
 }
 
 /**
- * Send Discord notification via webhook
+ * Sync Discord roles via Edge Function
+ */
+async function syncDiscordRole(action: 'add' | 'remove', playerId: string, teamId: string) {
+  try {
+    // Get player's Discord ID
+    const { data: player } = await supabase!
+      .from('users')
+      .select('id, discord_id')
+      .eq('id', playerId)
+      .single();
+
+    if (!player?.discord_id) {
+      console.warn('Player does not have a Discord ID');
+      return;
+    }
+
+    // Get team's Discord role ID
+    const { data: team } = await supabase!
+      .from('teams')
+      .select('team_role_id')
+      .eq('id', teamId)
+      .single();
+
+    if (!team?.team_role_id) {
+      console.warn('Team does not have a Discord role ID');
+      return;
+    }
+
+    // Extract Discord ID from format 'discord-123456789'
+    const discordId = player.discord_id.replace('discord-', '');
+
+    // Call Edge Function to sync role
+    const { error } = await supabase!.functions.invoke('discord-role-sync', {
+      body: {
+        action,
+        userId: discordId,
+        roleId: team.team_role_id
+      }
+    });
+
+    if (error) {
+      console.error('Error syncing Discord role:', error);
+    }
+  } catch (error) {
+    console.error('Error in syncDiscordRole:', error);
+  }
+}
+
+/**
+ * Send Discord notification to transactions channel
  */
 async function sendDiscordNotification(type: string, data: any) {
-  const webhookUrl = import.meta.env.VITE_DISCORD_WEBHOOK_URL;
+  const webhookUrl = import.meta.env.VITE_DISCORD_TRANSACTIONS_WEBHOOK_URL;
   if (!webhookUrl) {
-    console.warn('Discord webhook URL not configured');
+    console.warn('Discord transactions webhook URL not configured');
     return;
   }
 
