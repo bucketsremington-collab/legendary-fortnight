@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from '../lib/supabase';
 import { calculateStats } from '../utils/helpers';
 import MinecraftHead from '../components/MinecraftHead';
 import { User, PlayerStats, Team } from '../types';
+import { fetchAllParkStats, ParkGameStats } from '../data/parkStatsService';
 
 type SortKey = 'ppg' | 'rpg' | 'apg' | 'spg' | 'bpg' | 'tpg';
 type TotalSortKey = 'pts' | 'reb' | 'ast' | 'stl' | 'blk' | 'tov';
@@ -17,13 +18,15 @@ export default function Stats() {
   const [totalSortBy, setTotalSortBy] = useState<TotalSortKey>('pts');
   const [showAverages, setShowAverages] = useState(true);
   const [selectedSeason, setSelectedSeason] = useState<string>('S0');
+  const [statsType, setStatsType] = useState<'season' | 'park'>('season');
   const [users, setUsers] = useState<User[]>([]);
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
+  const [parkStats, setParkStats] = useState<ParkGameStats[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDbConnected, setIsDbConnected] = useState(false);
 
-  // Load data on mount and when season changes
+  // Load data on mount and when season or statsType changes
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -34,20 +37,32 @@ export default function Stats() {
         setIsDbConnected(connected);
       }
       
-      // Fetch data (will use DB if connected, otherwise mock data)
-      const [loadedUsers, loadedStats, loadedTeams] = await Promise.all([
-        fetchUsers(),
-        fetchPlayerStats(selectedSeason),
-        fetchTeams()
-      ]);
+      if (statsType === 'park') {
+        // Fetch park stats
+        const [loadedUsers, loadedParkStats, loadedTeams] = await Promise.all([
+          fetchUsers(),
+          fetchAllParkStats(1),
+          fetchTeams()
+        ]);
+        setUsers(loadedUsers);
+        setParkStats(loadedParkStats);
+        setTeams(loadedTeams);
+      } else {
+        // Fetch season stats (will use DB if connected, otherwise mock data)
+        const [loadedUsers, loadedStats, loadedTeams] = await Promise.all([
+          fetchUsers(),
+          fetchPlayerStats(selectedSeason),
+          fetchTeams()
+        ]);
+        setUsers(loadedUsers);
+        setPlayerStats(loadedStats);
+        setTeams(loadedTeams);
+      }
       
-      setUsers(loadedUsers);
-      setPlayerStats(loadedStats);
-      setTeams(loadedTeams);
       setIsLoading(false);
     };
     loadData();
-  }, [selectedSeason]);
+  }, [selectedSeason, statsType]);
 
   // Helper to get team by ID
   const getTeam = (teamId: string | null) => {
@@ -55,8 +70,43 @@ export default function Stats() {
     return teams.find(t => t.id === teamId);
   };
 
-  // Get all users with stats (players, coaches, owners, etc.)
-  const playersWithStats = users
+  // Get all users with stats
+  const playersWithStats = statsType === 'park'
+    ? parkStats.map(ps => {
+        const user = users.find(u => u.minecraft_uuid === ps.player_uuid);
+        return {
+          ...user,
+          id: user?.id || ps.player_uuid,
+          minecraft_username: ps.player_name,
+          minecraft_uuid: ps.player_uuid,
+          stats: {
+            games_played: ps.games_played,
+            games_won: ps.wins,
+            games_lost: ps.losses,
+            points: ps.points,
+            assists: ps.assists,
+            rebounds: ps.rebounds,
+            steals: ps.steals,
+            blocks: ps.blocks,
+            turnovers: ps.turnovers,
+            fg_made: ps.fg_made,
+            fg_attempted: ps.fg_attempted,
+            three_fg_made: ps.three_fg_made,
+            three_fg_attempted: ps.three_fg_attempted,
+          },
+          calculatedStats: {
+            ppg: ps.games_played > 0 ? ps.points / ps.games_played : 0,
+            apg: ps.games_played > 0 ? ps.assists / ps.games_played : 0,
+            rpg: ps.games_played > 0 ? ps.rebounds / ps.games_played : 0,
+            spg: ps.games_played > 0 ? ps.steals / ps.games_played : 0,
+            bpg: ps.games_played > 0 ? ps.blocks / ps.games_played : 0,
+            tpg: ps.games_played > 0 ? ps.turnovers / ps.games_played : 0,
+            fg_pct: ps.fg_attempted > 0 ? (ps.fg_made / ps.fg_attempted) * 100 : 0,
+            three_pct: ps.three_fg_attempted > 0 ? (ps.three_fg_made / ps.three_fg_attempted) * 100 : 0,
+          }
+        };
+      }).filter(p => p.stats.games_played > 0)
+    : users
     .map(player => {
       const stats = playerStats.find(s => s.user_id === player.id);
       const team = getTeam(player.team_id);
@@ -127,13 +177,36 @@ export default function Stats() {
           <div>
             <h1 className="text-2xl font-bold text-mc-text mb-2">Player Statistics</h1>
             <p className="text-mc-text-muted">
-              Season statistical leaders and rankings 
+              {statsType === 'season' ? 'Season' : 'Park/Rec'} statistical leaders and rankings 
               <span className="text-xs ml-2">
                 ({playersWithStats.length} Players)
               </span>
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Season/Park Toggle */}
+            <div className="inline-flex rounded-md overflow-hidden">
+              <button
+                onClick={() => setStatsType('season')}
+                className={`px-3 py-1.5 text-sm font-medium transition-colors border focus:outline-none ${
+                  statsType === 'season'
+                    ? 'bg-mc-accent text-white border-mc-accent' 
+                    : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
+                } rounded-l-md border-r-0`}
+              >
+                Season
+              </button>
+              <button
+                onClick={() => setStatsType('park')}
+                className={`px-3 py-1.5 text-sm font-medium transition-colors border focus:outline-none ${
+                  statsType === 'park'
+                    ? 'bg-mc-accent text-white border-mc-accent' 
+                    : 'bg-mc-surface text-mc-text-muted border-mc-border hover:bg-mc-surface-light'
+                } rounded-r-md`}
+              >
+                Park/Rec
+              </button>
+            </div>
             {/* Averages/Totals Toggle */}
             <div className="inline-flex rounded-md overflow-hidden">
               <button
@@ -158,18 +231,20 @@ export default function Stats() {
               </button>
             </div>
             {/* Season Dropdown */}
-            <select
-              value={selectedSeason}
-              onChange={(e) => setSelectedSeason(e.target.value)}
-              title="Select season"
-              className="px-2 py-1.5 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
-            >
-              {AVAILABLE_SEASONS.map(season => (
-                <option key={season} value={season}>
-                  Season {season.replace('S', '')}
-                </option>
-              ))}
-            </select>
+            {statsType === 'season' && (
+              <select
+                value={selectedSeason}
+                onChange={(e) => setSelectedSeason(e.target.value)}
+                title="Select season"
+                className="px-2 py-1.5 bg-mc-surface border border-mc-border rounded text-mc-text text-sm focus:outline-none focus:border-mc-accent"
+              >
+                {AVAILABLE_SEASONS.map(season => (
+                  <option key={season} value={season}>
+                    Season {season.replace('S', '')}
+                  </option>
+                ))}
+              </select>
+            )}
             <div className={`px-2 py-1 rounded text-xs font-bold whitespace-nowrap ${isDbConnected ? 'bg-green-600 text-white' : 'bg-yellow-600 text-white'}`}>
               {isDbConnected ? 'Live' : 'Demo'}
             </div>

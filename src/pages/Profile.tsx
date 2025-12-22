@@ -484,12 +484,25 @@ export default function Profile() {
             <>
               {/* Record Section for Season Stats */}
               <div className="mb-6">
-                <h4 className="text-sm font-semibold text-mc-text mb-3">Season Record</h4>
-                <div className="grid grid-cols-1 gap-4">
+                <h4 className="text-sm font-semibold text-mc-text mb-3">Record</h4>
+                <div className="grid grid-cols-3 gap-4">
                   <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
-                    <div className="text-2xl font-bold text-mc-accent">{stats.games_played}</div>
-                    <div className="text-sm text-mc-text-muted">Games Played</div>
+                    <div className="text-2xl font-bold text-mc-accent">{stats.games_won || 0}</div>
+                    <div className="text-sm text-mc-text-muted">Wins</div>
                   </div>
+                  <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
+                    <div className="text-2xl font-bold text-red-500">{stats.games_lost || 0}</div>
+                    <div className="text-sm text-mc-text-muted">Losses</div>
+                  </div>
+                  <div className="bg-mc-surface-light p-3 border border-mc-border text-center">
+                    <div className="text-2xl font-bold text-mc-text">
+                      {stats.games_played > 0 ? ((stats.games_won / stats.games_played) * 100).toFixed(1) : '0.0'}%
+                    </div>
+                    <div className="text-sm text-mc-text-muted">Win %</div>
+                  </div>
+                </div>
+                <div className="mt-2 text-center text-mc-text-muted text-sm">
+                  {stats.games_played} Games Played
                 </div>
               </div>
 

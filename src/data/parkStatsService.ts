@@ -58,6 +58,39 @@ const PARK_STATS_API = import.meta.env.VITE_PARK_STATS_API || '/api/park-stats';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 /**
+ * Fetch park stats for all players
+ */
+export async function fetchAllParkStats(season: number = 1): Promise<ParkGameStats[]> {
+  try {
+    const url = `${PARK_STATS_API}?all=true&season=${season}`;
+    console.log('Fetching all park stats from:', url);
+    
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
+      }
+    });
+    
+    if (!response.ok) {
+      console.error('Failed to fetch all park stats:', response.statusText);
+      return [];
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.warn('Park stats Edge Function not deployed yet.');
+      return [];
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching all park stats:', error);
+    return [];
+  }
+}
+
+/**
  * Fetch park stats for a specific player by their Minecraft UUID
  */
 export async function fetchParkStatsByUUID(uuid: string, season: number = 1): Promise<ParkGameStats | null> {
