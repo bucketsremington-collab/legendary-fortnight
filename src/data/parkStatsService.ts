@@ -62,12 +62,19 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
  */
 export async function fetchParkStatsByUUID(uuid: string, season: number = 1): Promise<ParkGameStats | null> {
   try {
-    const response = await fetch(`${PARK_STATS_API}/${uuid}?season=${season}`, {
+    const url = `${PARK_STATS_API}/${uuid}?season=${season}`;
+    console.log('Fetching park stats from:', url);
+    console.log('Using anon key:', SUPABASE_ANON_KEY ? 'Present' : 'MISSING');
+    
+    const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         'apikey': SUPABASE_ANON_KEY,
       }
     });
+    
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
     
     if (!response.ok) {
       if (response.status === 404) {
@@ -75,12 +82,17 @@ export async function fetchParkStatsByUUID(uuid: string, season: number = 1): Pr
         return null;
       }
       console.error('Failed to fetch park stats:', response.statusText);
+      const text = await response.text();
+      console.error('Response body:', text.substring(0, 200));
       return null;
     }
     
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       console.warn('Park stats Edge Function not deployed yet. Deploy via Supabase Dashboard.');
+      console.warn('Content-Type:', contentType);
+      const text = await response.text();
+      console.warn('Response preview:', text.substring(0, 200));
       return null;
     }
     
