@@ -73,7 +73,7 @@ export default function Stats() {
   // Get all users with stats
   const playersWithStats = statsType === 'park'
     ? parkStats.map(ps => {
-        const user = users.find(u => u.minecraft_uuid === ps.player_uuid);
+        const user = users.find(u => u.minecraft_username.toLowerCase() === ps.player_name.toLowerCase());
         const team = getTeam(user?.team_id || null);
         return {
           player: {
@@ -84,6 +84,9 @@ export default function Stats() {
             team_id: user?.team_id || null,
           },
           stats: {
+            id: '',
+            user_id: user?.id || ps.player_uuid,
+            season: 'S1',
             games_played: ps.games_played,
             games_won: ps.wins,
             games_lost: ps.losses,
@@ -97,7 +100,9 @@ export default function Stats() {
             fg_attempted: ps.fg_attempted,
             three_fg_made: ps.three_fg_made,
             three_fg_attempted: ps.three_fg_attempted,
-          },
+            created_at: '',
+            updated_at: '',
+          } as PlayerStats,
           calculated: {
             ppg: ps.games_played > 0 ? ps.points / ps.games_played : 0,
             apg: ps.games_played > 0 ? ps.assists / ps.games_played : 0,
