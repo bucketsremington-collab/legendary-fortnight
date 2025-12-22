@@ -654,10 +654,13 @@ export async function fetchDiscordLinkByDiscordId(discordId: string): Promise<Di
       .from('discord_links')
       .select('*')
       .eq('discord_id', discordId)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      console.error('Error fetching Discord link:', error);
+      // Only log if it's not a "no rows" error
+      if (error.code !== 'PGRST116') {
+        console.error('Error fetching Discord link:', error);
+      }
       return null;
     }
 
@@ -678,10 +681,13 @@ export async function fetchDiscordLinkByMinecraftUsername(minecraftUsername: str
       .from('discord_links')
       .select('*')
       .eq('minecraft_username', minecraftUsername)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      console.error('Error fetching Discord link by Minecraft username:', error);
+      // Only log if it's not a "no rows" error
+      if (error.code !== 'PGRST116') {
+        console.error('Error fetching Discord link by Minecraft username:', error);
+      }
       return null;
     }
 
