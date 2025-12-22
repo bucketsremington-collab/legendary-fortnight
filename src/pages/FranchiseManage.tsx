@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth, MBA_ROLE_IDS, hasDiscordRole } from '../context/AuthContext';
+import { useAuth, MBA_ROLE_IDS } from '../context/AuthContext';
 import { fetchTeamById, fetchTeamMembers, fetchGamesByTeamId, fetchUsers } from '../data/dataService';
 import { signPlayer, releasePlayer } from '../data/franchiseService';
 import { Team, User, Game } from '../types';
 import MinecraftHead from '../components/MinecraftHead';
+import { hasDiscordRole } from '../utils/roleHelpers';
 
 // Team Logo component
 function TeamLogo({ team, size = 40 }: { team: Team, size?: number }) {

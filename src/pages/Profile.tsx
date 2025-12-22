@@ -11,14 +11,11 @@ import {
 } from '../data/dataService';
 import { useAuth, MBA_ROLE_IDS } from '../context/AuthContext';
 import { calculateStats } from '../utils/helpers';
+import { hasDiscordRole } from '../utils/roleHelpers';
 import MinecraftHead from '../components/MinecraftHead';
 import ParkStatsDisplay from '../components/ParkStatsDisplay';
 import { User, Team, PlayerStats, Accolade } from '../types';
 
-// Helper to check if user has a specific Discord role
-function hasDiscordRole(user: User | null, roleId: string): boolean {
-  return user?.discord_roles?.includes(roleId) ?? false;
-}
 // Available seasons (add more as needed)
 const AVAILABLE_SEASONS = ['S0'];
 
