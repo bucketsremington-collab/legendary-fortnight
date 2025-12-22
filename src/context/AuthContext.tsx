@@ -574,18 +574,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Auto-sync roles for new/first-time users
-  const performAutoSync = async () => {
-    // Wait a bit for Discord data to be fetched
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Check if user is in MBA server and has roles to sync
-    if (mbaServerMember && mbaServerMember.roles.length > 0) {
-      console.log('Performing auto role sync for first-time user...');
-      const result = await syncRolesToDatabase(false); // Don't force refresh, we just fetched
-      console.log('Auto sync result:', result);
+  // Track if we need to auto-sync after login
+  const [needsAutoSync, setNeedsAutoSync] = useState(false);
+
+  // Auto-sync roles when Discord data is ready
+  useEffect(() => {
+    if (needsAutoSync && mbaServerMember && mbaServerMember.roles.length > 0) {
+      console.log('Discord data loaded, performing auto role sync...');
+      syncRolesToDatabase(false).then(result => {
+        console.log('Auto sync result:', result);
+        setNeedsAutoSync(false);
+      });
     }
-  };
+  }, [needsAutoSync, mbaServerMember]);
 
   // Initialize auth state
   useEffect(() => {
@@ -730,16 +731,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (newSession?.user) {
               // Only reload user on actual new sign-in, not on initial page load
               if (event === 'SIGNED_IN') {
-                const isNewUser = await loadUserFromSupabaseAuth(newSession.user, true);
+                await loadUserFromSupabaseAuth(newSession.user, true);
                 
-                // If it's a new user, trigger auto role sync after Discord data loads
-                if (isNewUser) {
-                  console.log('New sign-in detected, will auto-sync roles...');
-                  // Delay to allow Discord data to be fetched first
-                  setTimeout(() => {
-                    performAutoSync();
-                  }, 2000);
-                }
+                // Always trigger auto-sync on fresh login to ensure roles are up-to-date
+                console.log('Sign-in detected, will auto-sync roles when Discord data loads...');
+                setNeedsAutoSync(true);
               }
               // INITIAL_SESSION and TOKEN_REFRESHED are ignored - we use cached data
             } else if (event === 'SIGNED_OUT') {
