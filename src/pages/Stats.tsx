@@ -143,12 +143,8 @@ export default function Stats() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('[Stats] Tab became visible - checking if reload needed');
-        const now = Date.now();
-        if (lastDataLoad > 0 && (now - lastDataLoad) > 60 * 1000) { // More than 1 minute old
-          console.log('[Stats] Data is stale, forcing reload');
-          setLastDataLoad(0); // Reset to force reload
-        }
+        console.log('[Stats] Tab became visible - forcing full page reload');
+        window.location.reload();
       } else {
         console.log('[Stats] Tab became hidden');
       }
@@ -158,7 +154,7 @@ export default function Stats() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [lastDataLoad]);
+  }, []);
 
   // Helper to get team by ID
   const getTeam = (teamId: string | null) => {
