@@ -781,37 +781,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session || !supabase) return;
 
-    // Refresh session every 2 minutes to keep connection active and check provider token
-    const refreshInterval = setInterval(async () => {
-      try {
-        console.log('Refreshing session to keep it alive...');
-        const { data, error } = await supabase!.auth.refreshSession();
-        if (error) {
-          console.error('Session refresh error:', error);
-        } else if (data.session) {
-          // IMPORTANT: Preserve the provider_token if the refresh doesn't return one
-          // Discord OAuth tokens don't refresh with every session refresh
-          if (!data.session.provider_token && session.provider_token) {
-            console.log('Preserving existing provider token from current session');
-            data.session.provider_token = session.provider_token;
-            data.session.provider_refresh_token = session.provider_refresh_token;
-          }
-          
-          // Check if provider token is missing
-          if (!data.session.provider_token) {
-            console.warn('Provider token is missing after refresh - Discord connection may need re-authentication');
-            console.warn('User will need to log out and log back in to restore Discord sync functionality');
-          }
-          setSession(data.session);
-          console.log('Session refreshed successfully', data.session.provider_token ? '(provider token OK)' : '(provider token MISSING)');
-        }
-      } catch (err) {
-        console.error('Failed to refresh session:', err);
-      }
-    }, 2 * 60 * 1000); // 2 minutes
+    let refreshInterval: NodeJS.Timeout | null = null;
 
-    return () => clearInterval(refreshInterval);
-  }, [session]);
+    const startRefreshInterval = () => {
+      // Only refresh if tab is visible
+      if (document.visibilityState !== 'visible') return;
+
+      // Refresh session every 10 minutes (reduced from 2 minutes)
+      refreshInterval = setInterval(async () => {
+        // Skip if tab is hidden
+        if (document.visibilityState !== 'visible') {
+          console.log('Skipping session refresh - tab is hidden');
+          return;
+        }
+
+        try {
+          console.log('Refreshing session to keep it alive...');
+          const { data, error } = await supabase!.auth.refreshSession();
+          if (error) {
+            console.error('Session refresh error:', error);
+          } else if (data.session) {
+            // IMPORTANT: Preserve the provider_token if the refresh doesn't return one
+            // Discord OAuth tokens don't refresh with every session refresh
+            if (!data.session.provider_token && session.provider_token) {
+              console.log('Preserving existing provider token from current session');
+              data.session.provider_token = session.provider_token;
+              data.session.provider_refresh_token = session.provider_refresh_token;
+            }
+            
+            // Check if provider token is missing
+            if (!data.session.provider_token) {
+              console.warn('Provider token is missing after refresh - Discord connection may need re-authentication');
+              console.warn('User will need to log out and log back in to restore Discord sync functionality');
+            }
+            setSession(data.session);
+            console.log('Session refreshed successfully', data.session.provider_token ? '(provider token OK)' : '(provider token MISSING)');
+          }
+        } catch (err) {
+          console.error('Failed to refresh session:', err);
+        }
+      }, 10 * 60 * 1000); // 10 minutes (reduced API calls)
+    };
+
+    // Handle visibility changes
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Tab visible - starting session refresh interval');
+        startRefreshInterval();
+      } else {
+        console.log('Tab hidden - stopping session refresh interval');
+        if (refreshInterval) {
+          clearInterval(refreshInterval);
+          refreshInterval = null;
+        }
+      }
+    };
+
+    // Start interval if tab is visible
+    startRefreshInterval();
+
+    // Listen for visibility changes
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [session, supabase]);
 
   // Login with Discord OAuth
   const loginWithDiscord = async () => {
