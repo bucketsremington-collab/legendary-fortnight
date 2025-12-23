@@ -789,7 +789,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) {
           console.error('Session refresh error:', error);
         } else if (data.session) {
-          // Check if provider token is missing or will expire soon
+          // IMPORTANT: Preserve the provider_token if the refresh doesn't return one
+          // Discord OAuth tokens don't refresh with every session refresh
+          if (!data.session.provider_token && session.provider_token) {
+            console.log('Preserving existing provider token from current session');
+            data.session.provider_token = session.provider_token;
+            data.session.provider_refresh_token = session.provider_refresh_token;
+          }
+          
+          // Check if provider token is missing
           if (!data.session.provider_token) {
             console.warn('Provider token is missing after refresh - Discord connection may need re-authentication');
             console.warn('User will need to log out and log back in to restore Discord sync functionality');
