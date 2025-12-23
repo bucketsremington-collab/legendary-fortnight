@@ -26,30 +26,6 @@ export default function Stats() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [isDbConnected, setIsDbConnected] = useState(false);
-  const [lastLoadTime, setLastLoadTime] = useState<number>(Date.now());
-
-  // Refresh data when page becomes visible after being idle
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        const timeSinceLastLoad = Date.now() - lastLoadTime;
-        // Refresh if page was hidden for more than 5 minutes
-        if (timeSinceLastLoad > 5 * 60 * 1000 && !isLoading && !isDataLoading) {
-          console.log('Page visible after being idle, refreshing data...');
-          setLastLoadTime(Date.now());
-          // Trigger reload by toggling a state
-          if (statsType === 'park') {
-            fetchAllParkStats(1).then(setParkStats).catch(console.error);
-          } else {
-            fetchPlayerStats(selectedSeason).then(setPlayerStats).catch(console.error);
-          }
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [lastLoadTime, isLoading, isDataLoading, statsType, selectedSeason]);
 
   // Load initial data on mount (users, teams, connection check)
   useEffect(() => {
@@ -101,7 +77,6 @@ export default function Stats() {
         // Keep existing data on error
       } finally {
         setIsDataLoading(false);
-        setLastLoadTime(Date.now());
       }
     };
     loadStatsData();

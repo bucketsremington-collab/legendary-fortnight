@@ -66,17 +66,6 @@ export default function Home() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [freeAgentUsers, setFreeAgentUsers] = useState<Map<string, User>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [lastLoadTime, setLastLoadTime] = useState<number>(0);
-
-  // Auto reload page every 2 minutes
-  useEffect(() => {
-    const reloadInterval = setInterval(() => {
-      console.log('Auto-reloading page to keep session fresh...');
-      window.location.reload();
-    }, 2 * 60 * 1000); // 2 minutes
-
-    return () => clearInterval(reloadInterval);
-  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -123,7 +112,6 @@ export default function Home() {
           games: gamesData,
           timestamp: now
         }));
-        setLastLoadTime(now);
 
         // Pre-fetch users for free agent listings
         const faUsers = new Map<string, User>();
@@ -161,25 +149,6 @@ export default function Home() {
       }
     }
     loadData();
-    
-    // Auto-refresh when page becomes visible after being idle
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && lastLoadTime > 0) {
-        const timeSinceLoad = Date.now() - lastLoadTime;
-        // If page was idle for more than 5 minutes, refresh data
-        if (timeSinceLoad > 5 * 60 * 1000) {
-          console.log('Page was idle, refreshing home data...');
-          loadData();
-        }
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getTeamById = (id: string) => teams.find(t => t.id === id);
