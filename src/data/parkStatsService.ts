@@ -63,7 +63,7 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 export async function fetchAllParkStats(season: number = 1): Promise<ParkGameStats[]> {
   try {
     const url = `${PARK_STATS_API}?all=true&season=${season}`;
-    console.log('Fetching all park stats from:', url);
+    console.log('[ParkStats] Fetching all park stats from:', url);
     
     const response = await fetch(url, {
       headers: {
@@ -72,18 +72,24 @@ export async function fetchAllParkStats(season: number = 1): Promise<ParkGameSta
       }
     });
     
+    console.log('[ParkStats] Response status:', response.status, response.statusText);
+    
     if (!response.ok) {
-      console.error('Failed to fetch all park stats:', response.statusText);
+      console.error('[ParkStats] Failed to fetch all park stats:', response.statusText);
       return [];
     }
     
     const contentType = response.headers.get('content-type');
+    console.log('[ParkStats] Content-Type:', contentType);
+    
     if (!contentType || !contentType.includes('application/json')) {
-      console.warn('Park stats Edge Function not deployed yet.');
+      console.warn('[ParkStats] Edge Function not deployed or returned non-JSON response');
       return [];
     }
     
-    return await response.json();
+    const data = await response.json();
+    console.log('[ParkStats] Received park stats:', Array.isArray(data) ? data.length : 'not an array', data);
+    return data;
   } catch (error) {
     console.error('Error fetching all park stats:', error);
     return [];
