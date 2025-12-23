@@ -171,7 +171,10 @@ export default function Stats() {
     ? parkStats.map(ps => {
         const user = users.find(u => u.minecraft_username.toLowerCase() === ps.player_name.toLowerCase());
         // Skip if no user account found (not logged in)
-        if (!user) return null;
+        if (!user) {
+          console.log('[Stats] No user found for park player:', ps.player_name);
+          return null;
+        }
         
         const team = getTeam(user?.team_id || null);
         return {
@@ -231,6 +234,9 @@ export default function Stats() {
       };
     })
     .filter(p => p.stats && p.calculated);
+
+  // Log the results
+  console.log('[Stats] Players with stats:', playersWithStats.length, 'Stats type:', statsType, 'Users:', users.length, 'Park stats:', parkStats.length, 'Player stats:', playerStats.length);
 
   // Sort by selected stat
   const sortedPlayers = [...playersWithStats].sort((a, b) => {
