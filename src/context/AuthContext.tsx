@@ -772,7 +772,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session || !supabase) return;
 
-    // Refresh session every 30 seconds to keep connection active
+    // Refresh session every 10 seconds to keep connection active
     const refreshInterval = setInterval(async () => {
       try {
         console.log('Refreshing session to keep it alive...');
@@ -786,7 +786,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.error('Failed to refresh session:', err);
       }
-    }, 30 * 1000); // 30 seconds
+    }, 10 * 1000); // 10 seconds
 
     return () => clearInterval(refreshInterval);
   }, [session]);
