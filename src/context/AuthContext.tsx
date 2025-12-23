@@ -341,11 +341,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const { data: { session: refreshedSession }, error: refreshError } = await supabase!.auth.refreshSession();
       
-      if (refreshError || !refreshedSession?.provider_token) {
-        console.error('Failed to refresh session:', refreshError);
+      if (refreshError) {
+        console.warn('Session refresh returned an error:', refreshError);
+      }
+      
+      if (!refreshedSession?.provider_token) {
+        console.warn('Session refresh did not return a provider token - Discord connection may have expired');
         return { 
           success: false, 
-          message: 'Discord session expired. Please log out and log back in.' 
+          message: 'Discord connection expired. Please log out and log back in to reconnect.' 
         };
       }
       
