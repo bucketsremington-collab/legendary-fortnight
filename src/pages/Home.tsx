@@ -67,17 +67,6 @@ export default function Home() {
   const [freeAgentUsers, setFreeAgentUsers] = useState<Map<string, User>>(new Map());
   const [loading, setLoading] = useState(true);
   const [lastLoadTime, setLastLoadTime] = useState<number>(0);
-  const [abortController, setAbortController] = useState<AbortController | null>(null);
-
-  // Cleanup on unmount - abort any pending requests
-  useEffect(() => {
-    return () => {
-      if (abortController) {
-        console.log('Aborting pending requests on Home page unmount');
-        abortController.abort();
-      }
-    };
-  }, [abortController]);
 
   // Auto reload page every 2 minutes
   useEffect(() => {
@@ -91,15 +80,6 @@ export default function Home() {
 
   useEffect(() => {
     async function loadData() {
-      // Abort any previous request
-      if (abortController) {
-        abortController.abort();
-      }
-      
-      // Create new abort controller for this load
-      const controller = new AbortController();
-      setAbortController(controller);
-      
       setLoading(true);
       
       // Try to load from cache first
@@ -122,23 +102,13 @@ export default function Home() {
       }
       
       try {
-        // Add timeout to prevent infinite loading (reduced to 10s)
-        const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Data fetch timeout')), 10000)
-        );
-        
-        const dataPromise = Promise.all([
+        const [newsData, gamesData, freeAgentsData, usersData, teamsData] = await Promise.all([
           fetchNews(),
           fetchGames(),
           fetchFreeAgentListings(),
           fetchUsers(),
           fetchTeams(),
         ]);
-        
-        const [newsData, gamesData, freeAgentsData, usersData, teamsData] = await Promise.race([
-          dataPromise,
-          timeout
-        ]) as any;
         
         setNews(newsData);
         setGames(gamesData);
@@ -155,15 +125,11 @@ export default function Home() {
         }));
         setLastLoadTime(now);
 
-        // Pre-fetch users for free agent listings (with timeout)
+        // Pre-fetch users for free agent listings
         const faUsers = new Map<string, User>();
         for (const listing of freeAgentsData) {
           try {
-            const userPromise = fetchUserById(listing.user_id);
-            const user = await Promise.race([
-              userPromise,
-              new Promise((_, reject) => setTimeout(() => reject(new Error('User fetch timeout')), 2000))
-            ]) as User;
+            const user = await fetchUserById(listing.user_id);
             if (user) faUsers.set(listing.user_id, user);
           } catch {
             // Skip if user fetch fails

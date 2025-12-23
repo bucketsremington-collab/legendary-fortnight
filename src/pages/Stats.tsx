@@ -27,17 +27,6 @@ export default function Stats() {
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [isDbConnected, setIsDbConnected] = useState(false);
   const [lastLoadTime, setLastLoadTime] = useState<number>(Date.now());
-  const [abortController, setAbortController] = useState<AbortController | null>(null);
-
-  // Cleanup on unmount - abort any pending requests
-  useEffect(() => {
-    return () => {
-      if (abortController) {
-        console.log('Aborting pending requests on Stats page unmount');
-        abortController.abort();
-      }
-    };
-  }, [abortController]);
 
   // Refresh data when page becomes visible after being idle
   useEffect(() => {
@@ -65,18 +54,9 @@ export default function Stats() {
   // Load initial data on mount (users, teams, connection check)
   useEffect(() => {
     const loadInitialData = async () => {
-      // Create new abort controller for this load
-      const controller = new AbortController();
-      setAbortController(controller);
-      
       setIsLoading(true);
       
       try {
-        // Timeout protection - fail after 10 seconds (reduced from 15)
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 10000)
-        );
-
         // Check connection
         if (isSupabaseConfigured()) {
           const connected = await checkSupabaseConnection();
@@ -84,15 +64,10 @@ export default function Stats() {
         }
         
         // Load users and teams once
-        const dataPromise = Promise.all([
+        const [loadedUsers, loadedTeams] = await Promise.all([
           fetchUsers(),
           fetchTeams()
         ]);
-
-        const [loadedUsers, loadedTeams] = await Promise.race([
-          dataPromise,
-          timeoutPromise
-        ]) as [User[], Team[]];
 
         setUsers(loadedUsers);
         setTeams(loadedTeams);
@@ -111,36 +86,18 @@ export default function Stats() {
     const loadStatsData = async () => {
       if (isLoading) return; // Skip if initial load not complete
       
-      // Abort any previous request
-      if (abortController) {
-        abortController.abort();
-      }
-      
-      // Create new abort controller
-      const controller = new AbortController();
-      setAbortController(controller);
-      
       setIsDataLoading(true);
       
       try {
-        // Add timeout for stats requests too
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Stats request timeout')), 10000)
-        );
-        
         if (statsType === 'park') {
-          const statsPromise = fetchAllParkStats(1);
-          const loadedParkStats = await Promise.race([statsPromise, timeoutPromise]) as ParkGameStats[];
+          const loadedParkStats = await fetchAllParkStats(1);
           setParkStats(loadedParkStats);
         } else {
-          const statsPromise = fetchPlayerStats(selectedSeason);
-          const loadedStats = await Promise.race([statsPromise, timeoutPromise]) as PlayerStats[];
+          const loadedStats = await fetchPlayerStats(selectedSeason);
           setPlayerStats(loadedStats);
         }
       } catch (error) {
-        if (error instanceof Error && error.message !== 'Stats request timeout') {
-          console.error('Error loading stats data:', error);
-        }
+        console.error('Error loading stats data:', error);
         // Keep existing data on error
       } finally {
         setIsDataLoading(false);
