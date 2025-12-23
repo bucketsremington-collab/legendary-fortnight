@@ -768,6 +768,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [session?.provider_token]);
 
+  // Keep session alive by refreshing it periodically
+  useEffect(() => {
+    if (!session || !supabase) return;
+
+    // Refresh session every 5 minutes to keep it active
+    const refreshInterval = setInterval(async () => {
+      try {
+        console.log('Refreshing session to keep it alive...');
+        const { data, error } = await supabase!.auth.refreshSession();
+        if (error) {
+          console.error('Session refresh error:', error);
+        } else if (data.session) {
+          setSession(data.session);
+          console.log('Session refreshed successfully');
+        }
+      } catch (err) {
+        console.error('Failed to refresh session:', err);
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(refreshInterval);
+  }, [session]);
+
   // Login with Discord OAuth
   const loginWithDiscord = async () => {
     if (!isSupabaseConfigured() || !supabase) {
