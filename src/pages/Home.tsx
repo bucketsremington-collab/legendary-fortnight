@@ -67,8 +67,17 @@ export default function Home() {
   const [freeAgentUsers, setFreeAgentUsers] = useState<Map<string, User>>(new Map());
   const [loading, setLoading] = useState(true);
 
+  // Track component lifecycle
+  useEffect(() => {
+    console.log('[Home] Component mounted');
+    return () => {
+      console.log('[Home] Component unmounting - cleaning up');
+    };
+  }, []);
+
   useEffect(() => {
     async function loadData() {
+      console.log('[Home] Starting data load...');
       setLoading(true);
       
       // Try to load from cache first
@@ -79,18 +88,24 @@ export default function Home() {
           const age = Date.now() - timestamp;
           // Use cache if less than 2 minutes old
           if (age < 120000) {
-            console.log('Using cached home data');
+            console.log('[Home] Using cached home data (age:', Math.floor(age/1000), 'seconds)');
             setNews(cachedNews);
             setGames(cachedGames);
             setLoading(false);
             return; // Don't fetch fresh data
+          } else {
+            console.log('[Home] Cache expired (age:', Math.floor(age/1000), 'seconds), fetching fresh data');
           }
+        } else {
+          console.log('[Home] No cached data found');
         }
       } catch {
+        console.log('[Home] Invalid cache, continuing to fetch');
         // Invalid cache, continue to fetch
       }
       
       try {
+        console.log('[Home] Fetching fresh data from API...');
         const [newsData, gamesData, freeAgentsData, usersData, teamsData] = await Promise.all([
           fetchNews(),
           fetchGames(),
@@ -98,6 +113,8 @@ export default function Home() {
           fetchUsers(),
           fetchTeams(),
         ]);
+        
+        console.log('[Home] Data fetched - News:', newsData.length, 'Games:', gamesData.length, 'Free Agents:', freeAgentsData.length, 'Users:', usersData.length, 'Teams:', teamsData.length);
         
         setNews(newsData);
         setGames(gamesData);
@@ -112,8 +129,10 @@ export default function Home() {
           games: gamesData,
           timestamp: now
         }));
+        console.log('[Home] Data cached successfully');
 
         // Pre-fetch users for free agent listings
+        console.log('[Home] Pre-fetching', freeAgentsData.length, 'free agent users...');
         const faUsers = new Map<string, User>();
         for (const listing of freeAgentsData) {
           try {
@@ -124,14 +143,15 @@ export default function Home() {
           }
         }
         setFreeAgentUsers(faUsers);
+        console.log('[Home] Free agent users loaded:', faUsers.size);
       } catch (err) {
-        console.error('Error loading home data:', err);
+        console.error('[Home] Error loading home data:', err);
         // Try to use cached data even if expired
         try {
           const cached = localStorage.getItem('mba_home_data');
           if (cached) {
             const { news: cachedNews, games: cachedGames } = JSON.parse(cached);
-            console.log('Using expired cache due to fetch failure');
+            console.log('[Home] Using expired cache due to fetch failure');
             setNews(cachedNews);
             setGames(cachedGames);
           } else {
@@ -146,17 +166,22 @@ export default function Home() {
         // Don't clear users, teams, or free agents - they might be from a previous successful load
       } finally {
         setLoading(false);
+        console.log('[Home] Data load complete');
       }
     }
     loadData();
     
     // Reload data every 2 minutes to keep page active
+    console.log('[Home] Setting up 2-minute reload interval');
     const reloadInterval = setInterval(() => {
-      console.log('Reloading home data to keep page active...');
+      console.log('[Home] 2-minute interval triggered - reloading data');
       loadData();
     }, 2 * 60 * 1000); // 2 minutes
     
-    return () => clearInterval(reloadInterval);
+    return () => {
+      console.log('[Home] Clearing reload interval');
+      clearInterval(reloadInterval);
+    };
   }, []);
 
   const getTeamById = (id: string) => teams.find(t => t.id === id);

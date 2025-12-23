@@ -27,9 +27,18 @@ export default function Stats() {
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [isDbConnected, setIsDbConnected] = useState(false);
 
+  // Track component lifecycle
+  useEffect(() => {
+    console.log('[Stats] Component mounted');
+    return () => {
+      console.log('[Stats] Component unmounting - cleaning up');
+    };
+  }, []);
+
   // Load initial data on mount (users, teams, connection check)
   useEffect(() => {
     const loadInitialData = async () => {
+      console.log('[Stats] Starting initial data load...');
       setIsLoading(true);
       
       try {
@@ -45,12 +54,14 @@ export default function Stats() {
           fetchTeams()
         ]);
 
+        console.log('[Stats] Loaded', loadedUsers.length, 'users and', loadedTeams.length, 'teams');
         setUsers(loadedUsers);
         setTeams(loadedTeams);
         
         setIsLoading(false);
+        console.log('[Stats] Initial data load complete');
       } catch (error) {
-        console.error('Error loading initial data:', error);
+        console.error('[Stats] Error loading initial data:', error);
         setIsLoading(false);
         // Still show page with whatever data we have
       }
@@ -60,34 +71,48 @@ export default function Stats() {
   // Load stats data when season or statsType changes (smooth reload)
   useEffect(() => {
     const loadStatsData = async () => {
-      if (isLoading) return; // Skip if initial load not complete
+      if (isLoading) {
+        console.log('[Stats] Skipping stats load - initial load not complete');
+        return;
+      }
       
+      console.log('[Stats] Loading stats data - Type:', statsType, 'Season:', selectedSeason);
       setIsDataLoading(true);
       
       try {
         if (statsType === 'park') {
+          console.log('[Stats] Fetching park stats...');
           const loadedParkStats = await fetchAllParkStats(1);
+          console.log('[Stats] Park stats loaded:', loadedParkStats.length, 'entries');
           setParkStats(loadedParkStats);
         } else {
+          console.log('[Stats] Fetching player stats for season', selectedSeason);
           const loadedStats = await fetchPlayerStats(selectedSeason);
+          console.log('[Stats] Player stats loaded:', loadedStats.length, 'entries');
           setPlayerStats(loadedStats);
         }
+        console.log('[Stats] Stats data load complete');
       } catch (error) {
-        console.error('Error loading stats data:', error);
+        console.error('[Stats] Error loading stats data:', error);
         // Keep existing data on error
       } finally {
         setIsDataLoading(false);
+        console.log('[Stats] Stats loading finished (isDataLoading=false)');
       }
     };
     loadStatsData();
     
     // Reload stats data every 2 minutes to keep it fresh
+    console.log('[Stats] Setting up 2-minute reload interval');
     const reloadInterval = setInterval(() => {
-      console.log('Reloading stats data to keep page active...');
+      console.log('[Stats] 2-minute interval triggered - reloading stats data');
       loadStatsData();
     }, 2 * 60 * 1000); // 2 minutes
     
-    return () => clearInterval(reloadInterval);
+    return () => {
+      console.log('[Stats] Clearing reload interval');
+      clearInterval(reloadInterval);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSeason, statsType, isLoading]);
 
