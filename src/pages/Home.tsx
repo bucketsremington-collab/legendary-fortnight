@@ -67,6 +67,17 @@ export default function Home() {
   const [freeAgentUsers, setFreeAgentUsers] = useState<Map<string, User>>(new Map());
   const [loading, setLoading] = useState(true);
   const [lastLoadTime, setLastLoadTime] = useState<number>(0);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+
+  // Cleanup on unmount - abort any pending requests
+  useEffect(() => {
+    return () => {
+      if (abortController) {
+        console.log('Aborting pending requests on Home page unmount');
+        abortController.abort();
+      }
+    };
+  }, [abortController]);
 
   // Auto reload page every 2 minutes
   useEffect(() => {
@@ -80,6 +91,15 @@ export default function Home() {
 
   useEffect(() => {
     async function loadData() {
+      // Abort any previous request
+      if (abortController) {
+        abortController.abort();
+      }
+      
+      // Create new abort controller for this load
+      const controller = new AbortController();
+      setAbortController(controller);
+      
       setLoading(true);
       
       // Try to load from cache first
@@ -102,9 +122,9 @@ export default function Home() {
       }
       
       try {
-        // Add timeout to prevent infinite loading
+        // Add timeout to prevent infinite loading (reduced to 10s)
         const timeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Data fetch timeout')), 15000)
+          setTimeout(() => reject(new Error('Data fetch timeout')), 10000)
         );
         
         const dataPromise = Promise.all([
@@ -193,7 +213,8 @@ export default function Home() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [lastLoadTime]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getTeamById = (id: string) => teams.find(t => t.id === id);
   

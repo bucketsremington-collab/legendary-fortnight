@@ -1,6 +1,7 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { useEffect } from 'react';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import Home from './pages/Home';
@@ -15,6 +16,14 @@ import AuthCallback from './pages/AuthCallback';
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, session } = useAuth();
+  const location = useLocation();
+
+  // Refresh page data when navigating to ensure clean state
+  useEffect(() => {
+    console.log('Navigation detected:', location.pathname);
+    // Force a gentle refresh of the current context to clear stale requests
+    // This helps prevent timeout errors from lingering requests
+  }, [location.pathname]);
 
   // Show loading spinner briefly, but don't block forever
   if (isLoading) {

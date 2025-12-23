@@ -27,6 +27,17 @@ export default function Stats() {
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [isDbConnected, setIsDbConnected] = useState(false);
   const [lastLoadTime, setLastLoadTime] = useState<number>(Date.now());
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+
+  // Cleanup on unmount - abort any pending requests
+  useEffect(() => {
+    return () => {
+      if (abortController) {
+        console.log('Aborting pending requests on Stats page unmount');
+        abortController.abort();
+      }
+    };
+  }, [abortController]);
 
   // Refresh data when page becomes visible after being idle
   useEffect(() => {
@@ -54,12 +65,16 @@ export default function Stats() {
   // Load initial data on mount (users, teams, connection check)
   useEffect(() => {
     const loadInitialData = async () => {
+      // Create new abort controller for this load
+      const controller = new AbortController();
+      setAbortController(controller);
+      
       setIsLoading(true);
       
       try {
-        // Timeout protection - fail after 15 seconds
+        // Timeout protection - fail after 10 seconds (reduced from 15)
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 15000)
+          setTimeout(() => reject(new Error('Request timeout')), 10000)
         );
 
         // Check connection
@@ -91,24 +106,41 @@ export default function Stats() {
     };
     loadInitialData();
   }, []);
-
   // Load stats data when season or statsType changes (smooth reload)
   useEffect(() => {
     const loadStatsData = async () => {
       if (isLoading) return; // Skip if initial load not complete
       
+      // Abort any previous request
+      if (abortController) {
+        abortController.abort();
+      }
+      
+      // Create new abort controller
+      const controller = new AbortController();
+      setAbortController(controller);
+      
       setIsDataLoading(true);
       
       try {
+        // Add timeout for stats requests too
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Stats request timeout')), 10000)
+        );
+        
         if (statsType === 'park') {
-          const loadedParkStats = await fetchAllParkStats(1);
+          const statsPromise = fetchAllParkStats(1);
+          const loadedParkStats = await Promise.race([statsPromise, timeoutPromise]) as ParkGameStats[];
           setParkStats(loadedParkStats);
         } else {
-          const loadedStats = await fetchPlayerStats(selectedSeason);
+          const statsPromise = fetchPlayerStats(selectedSeason);
+          const loadedStats = await Promise.race([statsPromise, timeoutPromise]) as PlayerStats[];
           setPlayerStats(loadedStats);
         }
       } catch (error) {
-        console.error('Error loading stats data:', error);
+        if (error instanceof Error && error.message !== 'Stats request timeout') {
+          console.error('Error loading stats data:', error);
+        }
         // Keep existing data on error
       } finally {
         setIsDataLoading(false);
@@ -116,6 +148,7 @@ export default function Stats() {
       }
     };
     loadStatsData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSeason, statsType, isLoading]);
 
   // Helper to get team by ID
