@@ -342,7 +342,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check if session token expired and try to refresh
     let currentSession = session;
     if (!currentSession?.provider_token) {
-      console.log('No provider token - refreshing session before sync...');
+      console.log('No provider token - attempting session refresh...');
       
       const { data: { session: refreshedSession }, error: refreshError } = await supabase!.auth.refreshSession();
       
@@ -351,17 +351,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       if (!refreshedSession?.provider_token) {
-        console.warn('Session refresh did not return a provider token - Discord connection may have expired');
+        console.warn('Session refresh did not return a provider token');
         return { 
           success: false, 
-          message: 'Discord connection expired. Please log out and log back in to reconnect.' 
+          message: 'Discord connection expired (typically after 7 days). Please log out and log back in to reconnect with Discord and sync your roles.' 
         };
       }
       
       // Update the session and use the refreshed session
       setSession(refreshedSession);
       currentSession = refreshedSession;
-      console.log('Session refreshed successfully, proceeding with sync');
+      console.log('Session and provider token refreshed successfully');
     }
 
     // Force refresh Discord roles and get the fresh data immediately
@@ -781,7 +781,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session || !supabase) return;
 
-    // Refresh session every 2 minutes to keep connection active
+    // Refresh session every 2 minutes to keep connection active and check provider token
     const refreshInterval = setInterval(async () => {
       try {
         console.log('Refreshing session to keep it alive...');
@@ -789,8 +789,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) {
           console.error('Session refresh error:', error);
         } else if (data.session) {
+          // Check if provider token is missing or will expire soon
+          if (!data.session.provider_token) {
+            console.warn('Provider token is missing after refresh - Discord connection may need re-authentication');
+            console.warn('User will need to log out and log back in to restore Discord sync functionality');
+          }
           setSession(data.session);
-          console.log('Session refreshed successfully');
+          console.log('Session refreshed successfully', data.session.provider_token ? '(provider token OK)' : '(provider token MISSING)');
         }
       } catch (err) {
         console.error('Failed to refresh session:', err);
