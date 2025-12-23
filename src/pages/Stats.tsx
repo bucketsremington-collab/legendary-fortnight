@@ -39,9 +39,9 @@ export default function Stats() {
   // Load initial data on mount (users, teams, connection check)
   useEffect(() => {
     const loadInitialData = async () => {
-      // Check if we have recent cached data (less than 5 minutes old)
+      // Check if we have recent cached data (less than 5 minutes old) AND we have actual data
       const cachedTimestamp = localStorage.getItem('mba_stats_timestamp');
-      if (cachedTimestamp) {
+      if (cachedTimestamp && users.length > 0 && teams.length > 0) {
         const age = Date.now() - parseInt(cachedTimestamp);
         if (age < 5 * 60 * 1000) { // 5 minutes
           console.log('[Stats] Using recent data, skipping initial load (age:', Math.floor(age/1000), 'seconds)');
