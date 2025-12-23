@@ -149,6 +149,14 @@ export default function Home() {
       }
     }
     loadData();
+    
+    // Reload data every 2 minutes to keep page active
+    const reloadInterval = setInterval(() => {
+      console.log('Reloading home data to keep page active...');
+      loadData();
+    }, 2 * 60 * 1000); // 2 minutes
+    
+    return () => clearInterval(reloadInterval);
   }, []);
 
   const getTeamById = (id: string) => teams.find(t => t.id === id);

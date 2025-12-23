@@ -80,6 +80,14 @@ export default function Stats() {
       }
     };
     loadStatsData();
+    
+    // Reload stats data every 2 minutes to keep it fresh
+    const reloadInterval = setInterval(() => {
+      console.log('Reloading stats data to keep page active...');
+      loadStatsData();
+    }, 2 * 60 * 1000); // 2 minutes
+    
+    return () => clearInterval(reloadInterval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSeason, statsType, isLoading]);
 
