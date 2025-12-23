@@ -91,9 +91,10 @@ export default function Stats() {
         return;
       }
       
-      // Check if we loaded this data recently
+      // Check if we have actual data AND it was loaded recently
       const now = Date.now();
-      if (lastDataLoad > 0 && (now - lastDataLoad) < 2 * 60 * 1000) { // 2 minutes
+      const hasData = statsType === 'park' ? parkStats.length > 0 : playerStats.length > 0;
+      if (hasData && lastDataLoad > 0 && (now - lastDataLoad) < 2 * 60 * 1000) { // 2 minutes
         console.log('[Stats] Skipping stats reload - data is fresh (age:', Math.floor((now - lastDataLoad)/1000), 'seconds)');
         return;
       }
