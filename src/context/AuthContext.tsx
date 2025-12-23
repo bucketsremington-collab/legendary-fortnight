@@ -335,20 +335,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Check if session token expired and try to refresh
-    if (!session?.provider_token) {
-      console.log('No provider token - attempting to refresh session');
+    let currentSession = session;
+    if (!currentSession?.provider_token) {
+      console.log('No provider token - refreshing session before sync...');
       
       const { data: { session: refreshedSession }, error: refreshError } = await supabase!.auth.refreshSession();
       
       if (refreshError || !refreshedSession?.provider_token) {
+        console.error('Failed to refresh session:', refreshError);
         return { 
           success: false, 
           message: 'Discord session expired. Please log out and log back in.' 
         };
       }
       
-      // Update the session
+      // Update the session and use the refreshed session
       setSession(refreshedSession);
+      currentSession = refreshedSession;
+      console.log('Session refreshed successfully, proceeding with sync');
     }
 
     // Force refresh Discord roles and get the fresh data immediately
