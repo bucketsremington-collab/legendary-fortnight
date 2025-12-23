@@ -25,6 +25,21 @@ export default function FreeAgents() {
   const [stats, setStats] = useState<Map<string, PlayerStats>>(new Map());
   const [loading, setLoading] = useState(true);
 
+  // Force reload when tab becomes visible after being hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[FreeAgents] Tab became visible - forcing reload');
+        window.location.reload();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   useEffect(() => {
     async function loadData() {
       setLoading(true);
@@ -74,6 +89,14 @@ export default function FreeAgents() {
       }
     }
     loadData();
+
+    // Reload data every 5 minutes
+    const reloadInterval = setInterval(() => {
+      console.log('[FreeAgents] 5-minute interval triggered - reloading data');
+      loadData();
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(reloadInterval);
   }, []);
 
   const getUserById = (id: string) => users.get(id);

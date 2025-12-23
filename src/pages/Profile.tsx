@@ -97,6 +97,21 @@ export default function Profile() {
     detectLinkedAccount();
   }, [isEditing, isOwnProfile, currentUser]);
 
+  // Force reload when tab becomes visible after being hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[Profile] Tab became visible - forcing reload');
+        window.location.reload();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   useEffect(() => {
     const loadProfile = async () => {
       if (!username) {
