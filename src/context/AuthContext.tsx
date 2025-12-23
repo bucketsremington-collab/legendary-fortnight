@@ -334,6 +334,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, message: 'Not logged in' };
     }
 
+    // Declare variables for Discord role data
+    let freshMemberInfo: DiscordMemberInfo | null = mbaServerMember;
+    let freshParsedRoles: MBARoles = mbaRoles;
+    let wasRateLimited = false;
+
     // Check if session token expired and try to refresh
     let currentSession = session;
     if (!currentSession?.provider_token) {
@@ -347,24 +352,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (!refreshedSession?.provider_token) {
         console.warn('Session refresh did not return a provider token - Discord connection may have expired');
-        return { 
-          success: false, 
-          message: 'Discord connection expired. Please log out and log back in to reconnect.' 
-        };
+        
+        // Try to use cached Discord data instead of failing immediately
+        const cachedData = getCachedDiscordData(true); // Accept stale cache
+        if (cachedData?.memberInfo && cachedData?.parsedRoles) {
+          console.log('Using cached Discord data for sync instead of requiring re-login');
+          freshMemberInfo = cachedData.memberInfo;
+          freshParsedRoles = cachedData.parsedRoles;
+          
+          // Proceed with sync using cached data
+          if (!freshMemberInfo) {
+            return {
+              success: false,
+              message: 'No Discord role data available. Please log out and log back in.'
+            };
+          }
+          
+          // Skip to database sync below - set flag to skip API call
+          currentSession = null;
+        } else {
+          return { 
+            success: false, 
+            message: 'Discord connection expired. Please log out and log back in to reconnect.' 
+          };
+        }
+      } else {
+        // Update the session and use the refreshed session
+        setSession(refreshedSession);
+        currentSession = refreshedSession;
+        console.log('Session refreshed successfully, proceeding with sync');
       }
-      
-      // Update the session and use the refreshed session
-      setSession(refreshedSession);
-      currentSession = refreshedSession;
-      console.log('Session refreshed successfully, proceeding with sync');
     }
 
-    // Force refresh Discord roles and get the fresh data immediately
-    let freshMemberInfo: DiscordMemberInfo | null = mbaServerMember;
-    let freshParsedRoles: MBARoles = mbaRoles;
-    let wasRateLimited = false;
-    
-    if (forceRefresh) {
+    // Force refresh Discord roles and get the fresh data immediately (only if we have provider token)
+    if (forceRefresh && currentSession?.provider_token) {
       const result = await fetchMBAServerInfo(true);
       if (result) {
         freshMemberInfo = result.memberInfo;
