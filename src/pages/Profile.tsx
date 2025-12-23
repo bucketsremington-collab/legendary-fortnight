@@ -53,6 +53,7 @@ export default function Profile() {
   const [notFound, setNotFound] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState<string>('S0');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [syncError, setSyncError] = useState<string | null>(null);
   
   // Edit mode states
   const [isEditing, setIsEditing] = useState(false);
@@ -318,15 +319,16 @@ export default function Profile() {
               </div>
               <p className="text-mc-text-muted">@{user.username}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
               {isOwnProfile && !isEditing && (
                 <>
                   <button
                     onClick={async () => {
                       setIsLoading(true);
+                      setSyncError(null);
                       const result = await syncRolesToDatabase?.();
                       if (result && !result.success && result.message.includes('expired')) {
-                        alert('Failed - Try Relogging\n\n' + result.message);
+                        setSyncError('Failed - Try Relogging');
                       }
                       setRefreshKey(prev => prev + 1);
                     }}
@@ -335,6 +337,9 @@ export default function Profile() {
                   >
                     🔄
                   </button>
+                  {syncError && (
+                    <span className="text-red-400 text-sm">{syncError}</span>
+                  )}
                   <button
                     onClick={() => setIsEditing(true)}
                     className="px-3 py-1.5 bg-mc-surface border border-mc-border text-mc-text hover:bg-mc-surface-light transition-colors text-sm"
