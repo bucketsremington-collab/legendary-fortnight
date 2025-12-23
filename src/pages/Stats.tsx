@@ -168,7 +168,6 @@ export default function Stats() {
         const user = users.find(u => u.minecraft_username.toLowerCase() === ps.player_name.toLowerCase());
         // Skip if no user account found (not logged in)
         if (!user) {
-          console.log('[Stats] No user found for park player:', ps.player_name);
           return null;
         }
         
