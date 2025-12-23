@@ -188,7 +188,8 @@ export default function Home() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('[Home] Tab became visible - forcing reload');
+        console.log('[Home] Tab became visible - clearing cache and forcing reload');
+        localStorage.removeItem('mba_home_data');
         // Force a reload by calling window.location.reload()
         window.location.reload();
       } else {

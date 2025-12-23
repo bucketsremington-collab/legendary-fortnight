@@ -324,7 +324,10 @@ export default function Profile() {
                   <button
                     onClick={async () => {
                       setIsLoading(true);
-                      await syncRolesToDatabase?.();
+                      const result = await syncRolesToDatabase?.();
+                      if (result && !result.success && result.message.includes('expired')) {
+                        alert('Failed - Try Relogging\n\n' + result.message);
+                      }
                       setRefreshKey(prev => prev + 1);
                     }}
                     className="px-3 py-1.5 bg-mc-surface border border-mc-border text-mc-text hover:bg-mc-surface-light transition-colors text-sm"

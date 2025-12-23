@@ -144,7 +144,8 @@ export default function Stats() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('[Stats] Tab became visible - forcing full page reload');
+        console.log('[Stats] Tab became visible - clearing cache and forcing full page reload');
+        localStorage.removeItem('mba_stats_timestamp');
         window.location.reload();
       } else {
         console.log('[Stats] Tab became hidden');
