@@ -26,6 +26,7 @@ export default function Stats() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [isDbConnected, setIsDbConnected] = useState(false);
+  const [lastDataLoad, setLastDataLoad] = useState<number>(0);
 
   // Track component lifecycle
   useEffect(() => {
@@ -38,6 +39,17 @@ export default function Stats() {
   // Load initial data on mount (users, teams, connection check)
   useEffect(() => {
     const loadInitialData = async () => {
+      // Check if we have recent cached data (less than 5 minutes old)
+      const cachedTimestamp = localStorage.getItem('mba_stats_timestamp');
+      if (cachedTimestamp) {
+        const age = Date.now() - parseInt(cachedTimestamp);
+        if (age < 5 * 60 * 1000) { // 5 minutes
+          console.log('[Stats] Using recent data, skipping initial load (age:', Math.floor(age/1000), 'seconds)');
+          setIsLoading(false);
+          return;
+        }
+      }
+      
       console.log('[Stats] Starting initial data load...');
       setIsLoading(true);
       
@@ -58,6 +70,9 @@ export default function Stats() {
         setUsers(loadedUsers);
         setTeams(loadedTeams);
         
+        // Cache timestamp
+        localStorage.setItem('mba_stats_timestamp', Date.now().toString());
+        
         setIsLoading(false);
         console.log('[Stats] Initial data load complete');
       } catch (error) {
@@ -76,6 +91,13 @@ export default function Stats() {
         return;
       }
       
+      // Check if we loaded this data recently
+      const now = Date.now();
+      if (lastDataLoad > 0 && (now - lastDataLoad) < 30 * 1000) { // 30 seconds
+        console.log('[Stats] Skipping stats reload - data is fresh (age:', Math.floor((now - lastDataLoad)/1000), 'seconds)');
+        return;
+      }
+      
       console.log('[Stats] Loading stats data - Type:', statsType, 'Season:', selectedSeason);
       setIsDataLoading(true);
       
@@ -91,6 +113,7 @@ export default function Stats() {
           console.log('[Stats] Player stats loaded:', loadedStats.length, 'entries');
           setPlayerStats(loadedStats);
         }
+        setLastDataLoad(Date.now());
         console.log('[Stats] Stats data load complete');
       } catch (error) {
         console.error('[Stats] Error loading stats data:', error);
@@ -114,7 +137,7 @@ export default function Stats() {
       clearInterval(reloadInterval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSeason, statsType, isLoading]);
+  }, [selectedSeason, statsType, isLoading, lastDataLoad]);
 
   // Helper to get team by ID
   const getTeam = (teamId: string | null) => {
