@@ -171,12 +171,12 @@ export default function Home() {
     }
     loadData();
     
-    // Reload data every 2 minutes to keep page active
-    console.log('[Home] Setting up 2-minute reload interval');
+    // Reload data every 5 minutes to keep page active
+    console.log('[Home] Setting up 5-minute reload interval');
     const reloadInterval = setInterval(() => {
-      console.log('[Home] 2-minute interval triggered - reloading data');
+      console.log('[Home] 5-minute interval triggered - reloading data');
       loadData();
-    }, 2 * 60 * 1000); // 2 minutes
+    }, 5 * 60 * 1000); // 5 minutes
     
     return () => {
       console.log('[Home] Clearing reload interval');

@@ -93,7 +93,7 @@ export default function Stats() {
       
       // Check if we loaded this data recently
       const now = Date.now();
-      if (lastDataLoad > 0 && (now - lastDataLoad) < 30 * 1000) { // 30 seconds
+      if (lastDataLoad > 0 && (now - lastDataLoad) < 2 * 60 * 1000) { // 2 minutes
         console.log('[Stats] Skipping stats reload - data is fresh (age:', Math.floor((now - lastDataLoad)/1000), 'seconds)');
         return;
       }
@@ -125,12 +125,12 @@ export default function Stats() {
     };
     loadStatsData();
     
-    // Reload stats data every 2 minutes to keep it fresh
-    console.log('[Stats] Setting up 2-minute reload interval');
+    // Reload stats data every 5 minutes to keep it fresh
+    console.log('[Stats] Setting up 5-minute reload interval');
     const reloadInterval = setInterval(() => {
-      console.log('[Stats] 2-minute interval triggered - reloading stats data');
+      console.log('[Stats] 5-minute interval triggered - reloading stats data');
       loadStatsData();
-    }, 2 * 60 * 1000); // 2 minutes
+    }, 5 * 60 * 1000); // 5 minutes
     
     return () => {
       console.log('[Stats] Clearing reload interval');
