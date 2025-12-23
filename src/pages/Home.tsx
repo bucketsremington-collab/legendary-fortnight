@@ -184,6 +184,24 @@ export default function Home() {
     };
   }, []);
 
+  // Force reload when tab becomes visible after being hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[Home] Tab became visible - forcing reload');
+        // Force a reload by calling window.location.reload()
+        window.location.reload();
+      } else {
+        console.log('[Home] Tab became hidden');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   const getTeamById = (id: string) => teams.find(t => t.id === id);
   
   const upcomingGames = games.filter(g => g.status === 'scheduled').slice(0, 3);

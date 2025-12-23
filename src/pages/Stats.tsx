@@ -139,6 +139,27 @@ export default function Stats() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSeason, statsType, isLoading, lastDataLoad]);
 
+  // Force reload when tab becomes visible after being hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[Stats] Tab became visible - checking if reload needed');
+        const now = Date.now();
+        if (lastDataLoad > 0 && (now - lastDataLoad) > 60 * 1000) { // More than 1 minute old
+          console.log('[Stats] Data is stale, forcing reload');
+          setLastDataLoad(0); // Reset to force reload
+        }
+      } else {
+        console.log('[Stats] Tab became hidden');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [lastDataLoad]);
+
   // Helper to get team by ID
   const getTeam = (teamId: string | null) => {
     if (!teamId) return null;
