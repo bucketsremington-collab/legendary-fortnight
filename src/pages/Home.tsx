@@ -184,14 +184,13 @@ export default function Home() {
     };
   }, []);
 
-  // Force reload when tab becomes visible after being hidden
+  // Clear cache when tab becomes visible to force fresh data on next load
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('[Home] Tab became visible - clearing cache and forcing reload');
+        console.log('[Home] Tab became visible - clearing cache for next data fetch');
         localStorage.removeItem('mba_home_data');
-        // Force a reload by calling window.location.reload()
-        window.location.reload();
+        // Data will be refreshed by the periodic interval or on next user interaction
       } else {
         console.log('[Home] Tab became hidden');
       }

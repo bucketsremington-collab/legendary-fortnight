@@ -140,13 +140,13 @@ export default function Stats() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSeason, statsType, isLoading, lastDataLoad]);
 
-  // Force reload when tab becomes visible after being hidden
+  // Clear cache when tab becomes visible to force fresh data on next load
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('[Stats] Tab became visible - clearing cache and forcing full page reload');
+        console.log('[Stats] Tab became visible - clearing cache for next data fetch');
         localStorage.removeItem('mba_stats_timestamp');
-        window.location.reload();
+        // Data will be refreshed by the periodic interval or on next user interaction
       } else {
         console.log('[Stats] Tab became hidden');
       }

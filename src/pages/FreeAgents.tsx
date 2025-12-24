@@ -25,20 +25,7 @@ export default function FreeAgents() {
   const [stats, setStats] = useState<Map<string, PlayerStats>>(new Map());
   const [loading, setLoading] = useState(true);
 
-  // Force reload when tab becomes visible after being hidden
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log('[FreeAgents] Tab became visible - forcing reload');
-        window.location.reload();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
+  // Note: Data refresh happens via 5-minute interval when tab is active
 
   useEffect(() => {
     async function loadData() {
