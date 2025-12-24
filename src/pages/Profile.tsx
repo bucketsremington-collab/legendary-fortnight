@@ -124,26 +124,14 @@ export default function Profile() {
       setNotFound(false);
 
       try {
-        // Timeout protection - fail after 30 seconds (increased from 20)
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 30000)
-        );
-
         // Find user from database (dataService handles fallback to mock data)
-        // Force a fresh fetch by bypassing any stale cache
-        let foundUser = await Promise.race([
-          fetchUserByUsername(username),
-          timeoutPromise
-        ]) as User | null;
+        let foundUser = await fetchUserByUsername(username);
 
-        // If first attempt fails, retry once
+        // If first attempt fails, retry once after a short delay
         if (!foundUser) {
           console.log('[Profile] First fetch failed, retrying...');
           await new Promise(resolve => setTimeout(resolve, 1000));
-          foundUser = await Promise.race([
-            fetchUserByUsername(username),
-            timeoutPromise
-          ]) as User | null;
+          foundUser = await fetchUserByUsername(username);
         }
 
         if (!foundUser) {
