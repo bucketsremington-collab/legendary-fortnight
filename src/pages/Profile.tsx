@@ -97,7 +97,20 @@ export default function Profile() {
     detectLinkedAccount();
   }, [isEditing, isOwnProfile, currentUser]);
 
-  // Note: Profile data is loaded once and cached
+  // Refresh profile data when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && username) {
+        console.log('[Profile] Tab became visible - refreshing profile data');
+        setRefreshKey(prev => prev + 1);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [username]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -111,17 +124,27 @@ export default function Profile() {
       setNotFound(false);
 
       try {
-        // Timeout protection - fail after 20 seconds
+        // Timeout protection - fail after 30 seconds (increased from 20)
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Request timeout')), 20000)
+          setTimeout(() => reject(new Error('Request timeout')), 30000)
         );
 
         // Find user from database (dataService handles fallback to mock data)
         // Force a fresh fetch by bypassing any stale cache
-        const foundUser = await Promise.race([
+        let foundUser = await Promise.race([
           fetchUserByUsername(username),
           timeoutPromise
         ]) as User | null;
+
+        // If first attempt fails, retry once
+        if (!foundUser) {
+          console.log('[Profile] First fetch failed, retrying...');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          foundUser = await Promise.race([
+            fetchUserByUsername(username),
+            timeoutPromise
+          ]) as User | null;
+        }
 
         if (!foundUser) {
           setNotFound(true);

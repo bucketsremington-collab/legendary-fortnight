@@ -64,11 +64,11 @@ export default function Teams() {
     }
     loadData();
 
-    // Reload data every 5 minutes
+    // Reload data every 3 minutes to keep connections alive
     const reloadInterval = setInterval(() => {
-      console.log('[Teams] 5-minute interval triggered - reloading data');
+      console.log('[Teams] 3-minute interval triggered - reloading data');
       loadData();
-    }, 5 * 60 * 1000);
+    }, 3 * 60 * 1000); // 3 minutes
 
     return () => clearInterval(reloadInterval);
   }, []);

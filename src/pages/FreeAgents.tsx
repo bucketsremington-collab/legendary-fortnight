@@ -77,11 +77,11 @@ export default function FreeAgents() {
     }
     loadData();
 
-    // Reload data every 5 minutes
+    // Reload data every 3 minutes to keep connections alive
     const reloadInterval = setInterval(() => {
-      console.log('[FreeAgents] 5-minute interval triggered - reloading data');
+      console.log('[FreeAgents] 3-minute interval triggered - reloading data');
       loadData();
-    }, 5 * 60 * 1000);
+    }, 3 * 60 * 1000); // 3 minutes
 
     return () => clearInterval(reloadInterval);
   }, []);

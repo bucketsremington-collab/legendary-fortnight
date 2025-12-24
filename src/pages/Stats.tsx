@@ -126,12 +126,12 @@ export default function Stats() {
     };
     loadStatsData();
     
-    // Reload stats data every 5 minutes to keep it fresh
-    console.log('[Stats] Setting up 5-minute reload interval');
+    // Reload stats data every 3 minutes to keep connections alive
+    console.log('[Stats] Setting up 3-minute reload interval');
     const reloadInterval = setInterval(() => {
-      console.log('[Stats] 5-minute interval triggered - reloading stats data');
+      console.log('[Stats] 3-minute interval triggered - reloading stats data');
       loadStatsData();
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 3 * 60 * 1000); // 3 minutes
     
     return () => {
       console.log('[Stats] Clearing reload interval');
